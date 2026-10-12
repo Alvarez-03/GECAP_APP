@@ -1,6 +1,7 @@
 <script setup>
-import { Home, Map, FileText, User, AlertTriangle } from 'lucide-vue-next'
+import { Home, Map, FileText, User, Siren } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+
 
 const router = useRouter()
 
@@ -39,10 +40,9 @@ const activarEmergencia = () => router.push('/crear-alerta')
     <div class="absolute -top-6 left-1/2 transform -translate-x-1/2">
       <button 
         @click="activarEmergencia"
-        class="w-14 h-14 rounded-full bg-red-700 hover:bg-red-800 text-white shadow-lg border-2 border-white flex flex-col items-center justify-center p-1 cursor-pointer transition-transform active:scale-95"
+        class="w-16 h-16 rounded-full bg-red-700 hover:bg-red-800 text-white shadow-lg border-2 border-white flex flex-col items-center justify-center p-1 cursor-pointer transition-transform active:scale-95"
       >
-        <AlertTriangle class="w-5 h-5 text-white" />
-        <span class="text-[7px] font-black uppercase leading-none mt-0.5">SOS</span>
+        <Siren class="w-10 h-10 text-white" />
       </button>
     </div>
   </nav>

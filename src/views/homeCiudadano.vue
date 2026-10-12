@@ -2,7 +2,9 @@
 import { ref, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
-import { Loader2 } from 'lucide-vue-next'
+import { useGeolocation } from '@vueuse/core'
+
+import { Loader2, MapPin } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import { cerrarSesionCiudadano } from '../services/authService'
 import { perfilService } from '../services/perfilService'
@@ -16,6 +18,7 @@ const router = useRouter()
 const isLoading = ref(true)
 const authStore = useAuthStore()
 const nombreUsuario = ref('Ciudadano')
+const { coords, error: errorUbicacion } = useGeolocation()
 
 onMounted(async () => {
   try {
@@ -122,6 +125,23 @@ const activarEmergencia = () => router.push('/crear-alerta')
 
         <!-- BOTÓN DE PÁNICO -->
         <BotonPanico @activar="activarEmergencia" />
+
+        <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-center">
+        <span v-if="errorUbicacion" class="text-[11px] font-semibold text-red-500 flex items-center gap-1">
+          <MapPin class="w-3.5 h-3.5" />
+          Sin permiso de GPS / Sin ubicación
+        </span>
+
+        <span v-else-if="coords.latitude === Infinity" class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 animate-pulse">
+          <MapPin class="w-3.5 h-3.5 text-slate-400" />
+          Obteniendo GPS...
+        </span>
+
+        <span v-else class="text-[11px] font-bold text-slate-600 flex items-center gap-1 tracking-tight">
+          <MapPin class="w-3.5 h-3.5 text-red-600 animate-bounce" />
+          GPS: {{ coords.latitude.toFixed(5) }}, {{ coords.longitude.toFixed(5) }}
+        </span>
+      </div>
       </main>
 
       <!-- NAVEGACIÓN INFERIOR -->
