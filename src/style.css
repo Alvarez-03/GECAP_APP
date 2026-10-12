@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  /* Define tus colores personalizados aquí */
+  --color-gecap-blue: #153E9E;
+  --color-gecap-darkblue: #0F172A;
+  --color-gecap-red: #B11121;
+  --color-gecap-green: #16A931;
+  --color-gecap-background: #E8E8E8;
+}
+
+/* Estilos globales generales */
+body {
+  margin: 0;
+  background-color: var(--color-gecap-light);
+  font-family: system-ui, -apple-system, sans-serif;
+}
