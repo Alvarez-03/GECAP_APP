@@ -6,8 +6,6 @@ import { useGeolocation } from '@vueuse/core'
 
 import { Loader2, MapPin } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
-import { cerrarSesionCiudadano } from '../services/authService'
-import { perfilService } from '../services/perfilService'
 import { homeCiudadanoController } from '../controllers/homeCiudadanoController'
 
 import HeaderCiudadano from '../components/ciudadano/HeaderCiudadano.vue'
@@ -42,63 +40,7 @@ onMounted(async () => {
   }
 })
 
-const solicitarCierreSesion = () => {
-  toast(
-    ({ closeToast }) =>
-      h('div', { class: 'flex flex-col gap-2 p-1' }, [
-        h('p', { class: 'font-bold text-xs text-slate-800' }, '¿Estás seguro de que deseas cerrar sesión?'),
-        h('div', { class: 'flex justify-end gap-2 mt-1' }, [
-          h(
-            'button',
-            {
-              class: 'bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-3 py-1 rounded-lg text-xs cursor-pointer transition',
-              onClick: () => closeToast()
-            },
-            'Cancelar'
-          ),
-          h(
-            'button',
-            {
-              class: 'bg-red-700 hover:bg-red-800 text-white font-bold px-3 py-1 rounded-lg text-xs cursor-pointer transition',
-              onClick: async () => {
-                closeToast()
-                await ejecutarCierreSesion()
-              }
-            },
-            'Sí, Salir'
-          )
-        ])
-      ]),
-    {
-      position: 'top-center',
-      autoClose: false,
-      closeOnClick: false,
-      draggable: false,
-      icon: false
-    }
-  )
-}
-
-const ejecutarCierreSesion = async () => {
-  try {
-    await cerrarSesionCiudadano()
-    authStore.logout()
-    perfilService.limpiarPerfilLocal()
-    
-    toast.info('Has cerrado sesión correctamente.', {
-      position: 'top-center',
-      autoClose: 2500
-    })
-
-    router.push('/login')
-  } catch (error) {
-    toast.error('Error al cerrar sesión: ' + error.message, {
-      position: 'top-center'
-    })
-  }
-}
-
-const activarEmergencia = () => router.push('/crear-alerta')
+const activarEmergencia = () => router.push('/crearReporte')
 </script>
 
 <template>
@@ -113,7 +55,7 @@ const activarEmergencia = () => router.push('/crear-alerta')
     <div class="w-full h-full max-w-md bg-white shadow-2xl flex flex-col justify-between relative overflow-hidden">
       
       <!-- ENCABEZADO -->
-      <HeaderCiudadano @salir="solicitarCierreSesion" />
+      <HeaderCiudadano />
 
       <!-- CUERPO PRINCIPAL -->
       <main class="flex-1 px-6 py-6 flex flex-col justify-start overflow-y-auto">
