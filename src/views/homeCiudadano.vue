@@ -126,7 +126,7 @@ const activarEmergencia = () => router.push('/crear-alerta')
         <!-- BOTÓN DE PÁNICO -->
         <BotonPanico @activar="activarEmergencia" />
 
-        <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-center">
+      <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-center">
         <span v-if="errorUbicacion" class="text-[11px] font-semibold text-red-500 flex items-center gap-1">
           <MapPin class="w-3.5 h-3.5" />
           Sin permiso de GPS / Sin ubicación

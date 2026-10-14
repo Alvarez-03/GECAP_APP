@@ -6,6 +6,7 @@ import index from '../views/index.vue'
 import registercitizen from '../views/registerCiudadano.vue'
 import loginCiudadano from '../views/loginCiudadano.vue'
 import homeCiudadano from '../views/homeCiudadano.vue'
+import CrearAlerta from '../views/CrearAlerta.vue'
 
 const routes = [
   {
@@ -27,6 +28,12 @@ const routes = [
     path: '/homeCiudadano',
     name: 'homeciudadano',
     component: homeCiudadano,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/crearReporte',
+    name: 'crearReporte',
+    component: CrearAlerta,
     meta: { requiresAuth: true }
   },
 ]
