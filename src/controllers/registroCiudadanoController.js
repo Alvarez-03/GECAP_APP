@@ -1,6 +1,32 @@
 import { registrarCiudadano, iniciarSesionCiudadano } from '../services/authService'
 
 export const registroController = {
+  obtenerDatosDesdeURL(query) {
+    return {
+      documentType: query.doc_type ? String(query.doc_type) : 'CC',
+      documentNumber: query.doc_num ? String(query.doc_num) : '',
+      fullName: query.name ? String(query.name) : '',
+      email: query.email ? String(query.email) : '',
+      phone: query.phone ? String(query.phone) : '',
+      neighborhood: query.address ? String(query.address) : '',
+      acceptTerms: query.terms === 'true'
+    }
+  },
+
+  // Genera el objeto de query params para actualizar la URL
+  generarQueryParams(form, routeQuery) {
+    return {
+      ...routeQuery,
+      doc_type: form.documentType || undefined,
+      doc_num: form.documentNumber || undefined,
+      name: form.fullName || undefined,
+      email: form.email || undefined,
+      phone: form.phone || undefined,
+      address: form.neighborhood || undefined,
+      terms: form.acceptTerms ? 'true' : undefined
+    }
+  },
+  
   /**
    * Valida las reglas de negocio del formulario de registro
    */

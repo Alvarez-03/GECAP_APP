@@ -1,18 +1,18 @@
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { toast } from 'vue3-toastify'
 import { User, IdCard, Phone, MapPin, Lock, ShieldCheck, AlertCircle, ArrowLeft, Mail, Eye, EyeOff } from 'lucide-vue-next'
 
 import buttons from '../components/buttons.vue'
+import ModalTratamientoDatos from '../components/ciudadano/ModalTratamientoDatos.vue'
 
 import { useAuthStore } from '../stores/authStore'
 import { registroController } from '../controllers/registroCiudadanoController.js'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
-
-const emit = defineEmits(['registered', 'go-login', 'back'])
 
 const form = reactive({
   documentType: 'CC',
@@ -28,13 +28,52 @@ const form = reactive({
 
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
-
-// Estado de validación y carga
+const mostrarModalDatos = ref(false)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
+const datosListos = ref(false)
 
-const irAlLogin = () => {
-  router.push('/login')
+// 1. Cargar datos iniciales desde la URL mediante el controlador
+onMounted(() => {
+  const datosURL = registroController.obtenerDatosDesdeURL(route.query)
+  Object.assign(form, datosURL)
+
+  setTimeout(() => {
+    datosListos.value = true
+  }, 100)
+})
+
+// 2. Sincronizar hacia la URL invocando al controlador
+const sincronizarURL = () => {
+  if (!datosListos.value) return
+  const queryParams = registroController.generarQueryParams(form, route.query)
+  router.replace({ query: queryParams })
+}
+
+watch(
+  () => [
+    form.documentType,
+    form.documentNumber,
+    form.fullName,
+    form.email,
+    form.phone,
+    form.neighborhood,
+    form.acceptTerms
+  ],
+  sincronizarURL
+)
+
+const irAlLogin = () => router.push('/login')
+
+const abrirPoliticaDatos = (e) => {
+  if (e) e.preventDefault()
+  mostrarModalDatos.value = true
+}
+
+const aceptarPoliticaDesdeModal = () => {
+  form.acceptTerms = true
+  mostrarModalDatos.value = false
+  toast.info('Has aceptado el tratamiento de datos personales.', { position: 'top-center', autoClose: 2000 })
 }
 
 const handleRegister = async () => {
@@ -42,19 +81,16 @@ const handleRegister = async () => {
   isSubmitting.value = true
 
   try {
-    // Delegamos la validación y el proceso completo al controlador
     const resultado = await registroController.procesarRegistro(form, authStore)
 
-    toast.success(`¡Bienvenido, ${resultado.nombreUsuario}! Cuenta registrada con éxito.`, {
+    toast.success(`¡Bienvenido, ${resultado.nombreUsuario || 'Ciudadano'}! Cuenta registrada con éxito.`, {
       position: 'top-center',
       theme: 'colored'
     })
 
-    // Redirección directa a /homeCiudadano
     router.push('/homeCiudadano')
-
   } catch (error) {
-    errorMessage.value = error.message || 'Ocurrió un error al procesar el registro en el servidor.'
+    errorMessage.value = error.message || 'Ocurrió un error al procesar el registro.'
     toast.error(errorMessage.value, { position: 'top-center' })
   } finally {
     isSubmitting.value = false
@@ -65,7 +101,7 @@ const handleRegister = async () => {
 <template>
   <div class="w-full max-w-md md:max-w-2xl mx-auto bg-white md:rounded-3xl shadow-xl border border-slate-200 overflow-hidden font-sans">
     
-    <!-- Encabezado del Formulario -->
+    <!-- Encabezado -->
     <div class="bg-gecap-darkblue p-6 text-white relative">
       <router-link 
         to="/" 
@@ -77,23 +113,18 @@ const handleRegister = async () => {
 
       <div class="text-center flex items-center justify-around pt-5">
         <div class="w-24 h-24 rounded-2xl mx-auto mb-2 backdrop-blur-xs">
-            <img 
-                src="/LOGO_GECAP.png" 
-                alt="Logo GECAP" 
-                class="w-full h-full object-contain rounded-xl"
-            />
+          <img src="/LOGO_GECAP.png" alt="Logo GECAP" class="w-full h-full object-contain rounded-xl" />
         </div>
         <div>
-            <h2 class="text-xl md:text-2xl font-black">Registro de Ciudadano</h2>
-            <p class="text-blue-100 text-xs mt-1">Regístrate como ciudadano para emitir alertas de seguridad</p>
+          <h2 class="text-xl md:text-2xl font-black">Registro de Ciudadano</h2>
+          <p class="text-blue-100 text-xs mt-1">Regístrate como ciudadano para emitir alertas de seguridad</p>
         </div>     
       </div>
     </div>
 
-    <!-- Cuerpo del Formulario -->
+    <!-- Formulario -->
     <form @submit.prevent="handleRegister" class="p-6 md:p-8 space-y-4">
 
-      <!-- Alerta de Error visual -->
       <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs flex items-center gap-2">
         <AlertCircle class="w-4 h-4 shrink-0" />
         <span>{{ errorMessage }}</span>
@@ -143,7 +174,7 @@ const handleRegister = async () => {
         </div>
       </div>
 
-      <!-- CORREO DEL CIUDADAN@ -->
+      <!-- CORREO ELECTRÓNICO -->
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico *</label>
         <div class="relative">
@@ -188,13 +219,12 @@ const handleRegister = async () => {
         </div>
       </div>
 
-      <!-- REQUISITO DE CONTRASEÑA -->
+      <!-- CONTRASEÑA Y CONFIRMACIÓN -->
       <div>
         <label class="block text-xs font-bold text-gecap-red mb-1">Para que tu contraseña sea segura debe contener caracteres especiales, un número y una letra mayúscula.</label>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <!-- Contraseña -->
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña *</label>
           <div class="relative">
@@ -216,7 +246,6 @@ const handleRegister = async () => {
           </div>
         </div>
 
-        <!-- Confirmar Contraseña -->
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Confirmar Contraseña *</label>
           <div class="relative">
@@ -248,12 +277,20 @@ const handleRegister = async () => {
             class="mt-0.5 rounded border-slate-300 text-gecap-darkblue focus:ring-gecap-darkblue shrink-0"
           />
           <span class="text-[11px] text-slate-600 leading-snug">
-            Acepto el uso de mis datos personales de acuerdo con las políticas de seguridad ciudadana de la Policía Nacional y GECAP.
+            Acepto el uso de mis datos personales de acuerdo con las 
+            <button 
+              type="button" 
+              @click="abrirPoliticaDatos" 
+              class="text-gecap-darkblue font-bold underline hover:text-blue-900 cursor-pointer"
+            >
+              políticas de seguridad ciudadana
+            </button> 
+            de la Policía Nacional y GECAP.
           </span>
         </label>
       </div>
 
-      <!-- BOTÓN PRINCIPAL DE REGISTRO -->
+      <!-- BOTÓN PRINCIPAL -->
       <div class="pt-2 flex justify-center">
         <buttons 
           type="custom" 
@@ -270,7 +307,7 @@ const handleRegister = async () => {
         </buttons>
       </div>
 
-      <!-- ENLACE PARA INICIAR SESIÓN -->
+      <!-- ENLACE LOGIN -->
       <div class="text-center pt-2 border-t border-slate-100">
         <p class="text-xs text-slate-600">
           ¿Ya tienes una cuenta registrada? 
@@ -285,5 +322,14 @@ const handleRegister = async () => {
       </div>
 
     </form>
+
+    <!-- MODAL HABEAS DATA -->
+    <ModalTratamientoDatos 
+      :is-open="mostrarModalDatos"
+      :requiere-aceptacion="true"
+      @close="mostrarModalDatos = false"
+      @aceptar="aceptarPoliticaDesdeModal"
+    />
+
   </div>
 </template>
