@@ -162,7 +162,7 @@ const enviarReporte = async () => {
     toast.success('¡Reporte registrado exitosamente!', { position: 'top-center' })
 
     router.push({
-      path: '/confirmar-reporte',
+      path: '/reporteConfirmado',
       query: {
         codigo_seguimiento: alertaCreada.codigo_seguimiento,
         tipo_id: tipoReporteSeleccionado.value,

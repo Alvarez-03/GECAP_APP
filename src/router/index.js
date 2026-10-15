@@ -7,6 +7,7 @@ import registercitizen from '../views/registerCiudadano.vue'
 import loginCiudadano from '../views/loginCiudadano.vue'
 import homeCiudadano from '../views/homeCiudadano.vue'
 import CrearAlerta from '../views/CrearAlerta.vue'
+import ConfirmarReporte from '../views/confirmarReporte.vue'
 
 const routes = [
   {
@@ -34,6 +35,12 @@ const routes = [
     path: '/crearReporte',
     name: 'crearReporte',
     component: CrearAlerta,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/reporteConfirmado',
+    name: 'reporteConfirmado',
+    component: ConfirmarReporte,
     meta: { requiresAuth: true }
   },
 ]
