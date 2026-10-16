@@ -43,6 +43,16 @@ const routes = [
     component: ConfirmarReporte,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/olvidar-password',
+    name: 'olvidar-password',
+    component: () => import('../views/OlvidarPasswordView.vue')
+  },
+  {
+    path: '/restablecer-password',
+    name: 'restablecer-password',
+    component: () => import('../views/RestablecerPasswordView.vue')
+  }
 ]
 
 const router = createRouter({

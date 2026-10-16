@@ -206,7 +206,7 @@ const volver = () => { router.push('/') }
               <button 
                 type="button" 
                 class="text-slate-600 font-bold text-[11px] sm:text-xs hover:text-slate-900 underline cursor-pointer transition-colors"
-                @click="alert('Contacta al administrador del sistema para recuperar tu acceso.')"
+                @click="$router.push('/olvidar-password')"
               >
                 ¿Olvidaste tu contraseña?
               </button>

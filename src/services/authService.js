@@ -133,3 +133,56 @@ export const cerrarSesionCiudadano = async () => {
     throw new Error('No se pudo cerrar la sesión correctamente.')
   }
 }
+export const verificarCiudadanoPorEmail = async (email) => {
+  try {
+    if (!email || !email.includes('@')) {
+      throw new Error('Por favor ingresa un correo electrónico válido.')
+    }
+
+    const emailLimpio = email.trim().toLowerCase()
+
+    // Usar la RPC con SECURITY DEFINER para omitir bloqueos por RLS
+    const { data: existe, error } = await supabase.rpc('existe_correo_ciudadano', {
+      p_email: emailLimpio
+    })
+
+    if (error) {
+      console.error('Error al consultar RPC:', error.message)
+      throw new Error('Error al consultar el correo en la base de datos.')
+    }
+
+    if (!existe) {
+      throw new Error('El correo electrónico no se encuentra registrado en el sistema.')
+    }
+
+    return { success: true }
+  } catch (error) {
+    throw new Error(error.message || 'Error al validar el correo.')
+  }
+}
+
+// Actualizar contraseña mediante la función RPC segura en Supabase Auth
+export const actualizarPasswordCiudadano = async (email, nuevaPassword) => {
+  try {
+    const { error } = await supabase.rpc('actualizar_password_por_email', {
+      p_email: email.trim().toLowerCase(),
+      p_nuevo_password: nuevaPassword
+    })
+
+    if (error) {
+      console.error('Error en RPC actualizar password:', error.message)
+
+      
+      if (error.message && error.message.includes('La nueva contraseña no puede ser igual')) {
+        throw new Error('La nueva contraseña no puede ser igual a la contraseña que ya tenías registrada.')
+      }
+
+      throw new Error('No se pudo conectar con el servidor para actualizar la contraseña.')
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error al cambiar la contraseña:', error.message)
+    throw new Error(error.message || 'Ocurrió un error al actualizar la contraseña.')
+  }
+}
