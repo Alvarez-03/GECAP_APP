@@ -10,6 +10,7 @@ import CrearAlerta from '../views/CrearAlerta.vue'
 import ConfirmarReporte from '../views/confirmarReporte.vue'
 import HistorialReportesView from '../views/HistorialReportesView.vue'
 import HistorialDetalleView from '../views/HistorialDetalleView.vue'
+import PerfilView from '../views/PerfilView.vue'
 
 const routes = [
   {
@@ -67,6 +68,12 @@ const routes = [
     component: HistorialDetalleView,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/perfil',
+    name: 'Perfil',
+    component: PerfilView,
+    meta: { requiresAuth: true }
+  }
 ]
 
 const router = createRouter({
