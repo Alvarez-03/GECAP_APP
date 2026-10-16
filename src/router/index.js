@@ -8,6 +8,8 @@ import loginCiudadano from '../views/loginCiudadano.vue'
 import homeCiudadano from '../views/homeCiudadano.vue'
 import CrearAlerta from '../views/CrearAlerta.vue'
 import ConfirmarReporte from '../views/confirmarReporte.vue'
+import HistorialReportesView from '../views/HistorialReportesView.vue'
+import HistorialDetalleView from '../views/HistorialDetalleView.vue'
 
 const routes = [
   {
@@ -52,7 +54,19 @@ const routes = [
     path: '/restablecer-password',
     name: 'restablecer-password',
     component: () => import('../views/RestablecerPasswordView.vue')
-  }
+  },
+  {
+    path: '/historial',
+    name: 'HistorialReportes',
+    component: HistorialReportesView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/historial/:id',
+    name: 'HistorialDetalle',
+    component: HistorialDetalleView,
+    meta: { requiresAuth: true }
+  },
 ]
 
 const router = createRouter({
