@@ -11,6 +11,7 @@ import ConfirmarReporte from '../views/confirmarReporte.vue'
 import HistorialReportesView from '../views/HistorialReportesView.vue'
 import HistorialDetalleView from '../views/HistorialDetalleView.vue'
 import PerfilView from '../views/PerfilView.vue'
+import MapaView from '../views/MapaView.vue'
 
 const routes = [
   {
@@ -72,6 +73,12 @@ const routes = [
     path: '/perfil',
     name: 'Perfil',
     component: PerfilView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/mapa',
+    name: 'Mapa',
+    component: MapaView,
     meta: { requiresAuth: true }
   }
 ]
