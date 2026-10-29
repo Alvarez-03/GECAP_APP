@@ -186,3 +186,59 @@ export const actualizarPasswordCiudadano = async (email, nuevaPassword) => {
     throw new Error(error.message || 'Ocurrió un error al actualizar la contraseña.')
   }
 }
+
+// ==========================================
+// SECCIÓN: OPERADORES POLICIALES
+// ==========================================
+
+// Iniciar sesión operador policial
+export const iniciarSesionOperador = async (email, password) => {
+  try {
+    // 1. Autenticar credenciales en Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    })
+
+    if (authError) {
+      throw new Error('Credenciales inválidas o no autorizadas.')
+    }
+
+    const userId = authData.user.id
+
+    // 2. Consultar el perfil en la tabla de operador_cuadrantes
+    const { data: operadorData, error: operadorError } = await supabase
+      .from('operador_cuadrantes')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (operadorError) {
+      console.warn('Advertencia al consultar perfil de operador:', operadorError.message)
+    }
+
+    return {
+      success: true,
+      session: authData.session,
+      user: authData.user,
+      perfil: operadorData || { email: authData.user.email, rol: 'OPERADOR' }
+    }
+  } catch (error) {
+    console.error('Error en inicio de sesión de operador:', error.message)
+    throw new Error(error.message || 'Error al iniciar sesión como operador.')
+  }
+}
+
+// Cerrar sesión general / operador
+export const cerrarSesionOperador = async () => {
+  try {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+
+    localStorage.removeItem('operador_gecap')
+    return { success: true }
+  } catch (error) {
+    console.error('Error al cerrar sesión de operador:', error.message)
+    throw new Error('No se pudo cerrar la sesión.')
+  }
+}

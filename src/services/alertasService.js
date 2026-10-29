@@ -14,7 +14,8 @@ export const alertasService = {
         p_tipo_alerta: payload.tipo_alerta || null,
         p_descripcion: payload.descripcion || null,
         p_latitud: Number(payload.latitud),
-        p_longitud: Number(payload.longitud)
+        p_longitud: Number(payload.longitud),
+        p_nombre_ciudadano: payload.nombre_ciudadano
       })
 
       if (error) throw error

@@ -14,6 +14,10 @@ const irAlRegistro = () => {
 const irAlLogin = () => {
   router.push('/login')
 }
+
+const irAlLoginPolicia = () => {
+  router.push('/policia/login')
+}
 </script>
 
 <template>
@@ -83,8 +87,9 @@ const irAlLogin = () => {
             </p>
           </div>
           
-          <div class="md:w-48 shrink-0">
+          <div class="md:w-48 shrink-0 flex flex-col gap-1.5">
             <buttons type="register" text="REGISTRARME" @click="irAlRegistro" />
+            <buttons type="login" @click="irAlLogin" />
           </div>
         </div>
 
@@ -121,11 +126,12 @@ const irAlLogin = () => {
         </div>
 
         <!-- FOOTER / OPCIÓN DE INGRESO -->
-        <footer class="pt-4 border-t border-slate-200 text-center md:flex md:items-center md:justify-between md:text-left">
-          <p class="text-xs text-slate-600 mb-2 md:mb-0">
-            ¿Ya te habías registrado anteriormente?
-          </p>
-          <buttons type="login" @click="irAlLogin" />
+        <footer class="pt-4 border-t border-slate-200 text-xs text-slate-600">
+          <div class="md:col-span-2 text-center pt-2 border-t border-slate-100">
+            <a @click="irAlLoginPolicia" class="hover:text-blue-600 cursor-pointer transition">
+              ¿Eres operador, autorizado por la Policía Nacional de Colombia?
+            </a>
+          </div>
         </footer>
 
       </main>

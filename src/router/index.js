@@ -12,6 +12,8 @@ import HistorialReportesView from '../views/HistorialReportesView.vue'
 import HistorialDetalleView from '../views/HistorialDetalleView.vue'
 import PerfilView from '../views/PerfilView.vue'
 import MapaView from '../views/MapaView.vue'
+import LoginOperadorView from '../views/LoginOperadorView.vue'
+import MapaOperadorView from '../views/MapaOperadorView.vue'
 
 const routes = [
   {
@@ -80,6 +82,17 @@ const routes = [
     name: 'Mapa',
     component: MapaView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/policia/login',
+    name: 'login-policia',
+    component: LoginOperadorView,
+  },
+  {
+    path: '/policia/mapa',
+    name: 'mapa-policia',
+    component: MapaOperadorView,
+    meta: { requiresAuth: true, requiresOperator: true }
   }
 ]
 
@@ -88,35 +101,76 @@ const router = createRouter({
   routes
 })
 
-// GUARD DE NAVEGACIÓN GLOBAL
+// GUARD DE NAVEGACIÓN GLOBAL (CIUDADANOS Y OPERADORES)
 router.beforeEach(async (to, from, next) => {
-    const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-  
-    if (!requiresAuth) {
-      return next()
-    }
-  
-    try {
-      const usuarioLocal = localStorage.getItem('ciudadano_gecap')
-      const { data: { session } } = await supabase.auth.getSession()
-  
-      if (!session || !usuarioLocal) {
-        localStorage.removeItem('ciudadano_gecap')
-        
-        toast.warning('Tu sesión ha expirado o no estás autenticado.', {
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const requiresOperator = to.matched.some(record => record.meta.requiresOperator)
+
+  // 1. Si la ruta es pública, permitir acceso sin restricciones
+  if (!requiresAuth) {
+    return next()
+  }
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // 2. Si es una ruta protegida para OPERADORES POLICIALES
+    if (requiresOperator) {
+      if (!session) {
+        toast.warning('Acceso restringido. Debes iniciar sesión como operador.', {
           position: 'top-center',
           theme: 'dark'
         })
-  
-        return next({ name: 'login' })
+        return next({ name: 'login-policia' })
       }
-  
-      next()
-    } catch (error) {
-      console.error('Error al validar la sesión:', error)
-      toast.error('Error de autenticación. Inicia sesión nuevamente.')
+
+      // Validar si el usuario autenticado está registrado en la tabla 'operadores'
+      const { data: operador, error } = await supabase
+        .from('operador_cuadrantes')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      if (error || !operador) {
+        await supabase.auth.signOut()
+        localStorage.removeItem('operador_gecap')
+        toast.error('Cuenta no autorizada para el módulo operativo.', {
+          position: 'top-center',
+          theme: 'dark'
+        })
+        return next({ name: 'login-policia' })
+      }
+
+      return next()
+    }
+
+    // 3. Si es una ruta protegida para CIUDADANOS
+    const usuarioLocal = localStorage.getItem('ciudadano_gecap')
+
+    if (!session || !usuarioLocal) {
+      localStorage.removeItem('ciudadano_gecap')
+      
+      toast.warning('Tu sesión ha expirado o no estás autenticado.', {
+        position: 'top-center',
+        theme: 'dark'
+      })
+
       return next({ name: 'login' })
     }
-  })
 
+    return next()
+
+  } catch (error) {
+    console.error('Error al validar la sesión:', error)
+    toast.error('Error de autenticación. Inicia sesión nuevamente.', {
+      position: 'top-center',
+      theme: 'dark'
+    })
+
+    if (requiresOperator) {
+      return next({ name: 'login-policia' })
+    }
+    return next({ name: 'login' })
+  }
+})
 export default router

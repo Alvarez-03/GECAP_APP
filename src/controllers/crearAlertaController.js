@@ -17,6 +17,7 @@ export const crearAlertaController = {
     try {
       let documentoCiudadano = null
       let usuarioUuid = null
+      let nombreCiudadano = null
 
       const datosCiudadanoStorage = localStorage.getItem('ciudadano_gecap')
       if (datosCiudadanoStorage) {
@@ -24,6 +25,7 @@ export const crearAlertaController = {
           const ciudadanoObj = JSON.parse(datosCiudadanoStorage)
           documentoCiudadano = ciudadanoObj.numero_documento || null
           usuarioUuid = ciudadanoObj.user_id || null
+          nombreCiudadano = ciudadanoObj.nombre_completo || null
         } catch (e) {
           console.error('Error al parsear ciudadano_gecap:', e)
         }
@@ -36,7 +38,8 @@ export const crearAlertaController = {
         tipo_alerta: datosFormulario.tipo_alerta,
         descripcion: datosFormulario.descripcion,
         latitud: datosFormulario.latitud,
-        longitud: datosFormulario.longitud
+        longitud: datosFormulario.longitud,
+        nombre_ciudadano: nombreCiudadano
       }
 
       const respuesta = await alertasService.crearAlerta(payload)
