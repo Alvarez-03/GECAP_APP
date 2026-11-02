@@ -25,6 +25,7 @@ const alertaActiva = ref(null)
 
 let marcadoresBasesMap = {}
 let marcadoresAlertasMap = {}
+let canalAlertas = null // Variable para almacenar la suscripción de Supabase
 
 const cargarDatos = async () => {
   cargando.value = true
@@ -37,25 +38,46 @@ const cargarDatos = async () => {
   alertas.value = resAlertas.alertas || []
 
   idsSeleccionados.value = bases.value.map(b => b.id)
-  alertasSeleccionadas.value = alertas.value.map(a => a.id)
+  
+  // Mantener las alertas seleccionadas previamente si ya existían, si no, seleccionarlas todas
+  const idsActualesAlertas = alertas.value.map(a => a.id)
+  if (alertasSeleccionadas.value.length === 0) {
+    alertasSeleccionadas.value = idsActualesAlertas
+  } else {
+    // Agregar nuevas alertas que vayan llegando a la selección por defecto
+    const nuevasAlertas = idsActualesAlertas.filter(id => !alertasSeleccionadas.value.includes(id))
+    alertasSeleccionadas.value = [...alertasSeleccionadas.value, ...nuevasAlertas]
+  }
 
   actualizarMapa()
   cargando.value = false
 }
 
+// Vigilar cambios en las selecciones para actualizar el mapa en tiempo real
+watch(
+  () => [idsSeleccionados.value, alertasSeleccionadas.value],
+  () => {
+    actualizarMapa()
+  },
+  { deep: true }
+)
+
 const actualizarMapa = () => {
   if (!map) return
 
-  // 1. Marcadores de Bases
+  // 1. Marcadores de Bases (Normalizando IDs a String o Number para evitar fallos)
+  const idsBasesSeleccionadasStr = idsSeleccionados.value.map(String)
+  
   Object.keys(marcadoresBasesMap).forEach((id) => {
-    if (!idsSeleccionados.value.includes(id)) {
+    if (!idsBasesSeleccionadasStr.includes(String(id))) {
       map.removeLayer(marcadoresBasesMap[id])
       delete marcadoresBasesMap[id]
     }
   })
 
   bases.value.forEach((base) => {
-    if (idsSeleccionados.value.includes(base.id) && !marcadoresBasesMap[base.id]) {
+    const baseIdStr = String(base.id)
+    if (idsBasesSeleccionadasStr.includes(baseIdStr) && !marcadoresBasesMap[base.id]) {
       const lat = parseFloat(base.latitud ?? base.lat)
       const lng = parseFloat(base.longitud ?? base.lng)
       if (!isNaN(lat) && !isNaN(lng)) {
@@ -66,16 +88,19 @@ const actualizarMapa = () => {
     }
   })
 
-  // 2. Marcadores de Alertas
+  // 2. Marcadores de Alertas (Normalizando IDs)
+  const idsAlertasSeleccionadasStr = alertasSeleccionadas.value.map(String)
+
   Object.keys(marcadoresAlertasMap).forEach((id) => {
-    if (!alertasSeleccionadas.value.includes(id)) {
+    if (!idsAlertasSeleccionadasStr.includes(String(id))) {
       map.removeLayer(marcadoresAlertasMap[id])
       delete marcadoresAlertasMap[id]
     }
   })
 
   alertas.value.forEach((alerta) => {
-    if (alertasSeleccionadas.value.includes(alerta.id) && !marcadoresAlertasMap[alerta.id]) {
+    const alertaIdStr = String(alerta.id)
+    if (idsAlertasSeleccionadasStr.includes(alertaIdStr) && !marcadoresAlertasMap[alerta.id]) {
       const lat = parseFloat(alerta.latitud)
       const lng = parseFloat(alerta.longitud)
 
@@ -102,7 +127,6 @@ const actualizarMapa = () => {
 
         const marker = L.marker([lat, lng], { icon: iconoAlerta }).addTo(map)
 
-        // Al hacer clic en el pin del mapa, seleccionar la alerta para abrir el Popup en Vue
         marker.on('click', () => {
           alertaActiva.value = alerta
           map.flyTo([lat, lng], 16, { duration: 0.8 })
@@ -119,13 +143,12 @@ const centrarEnElemento = (item) => {
   const lng = parseFloat(item.longitud ?? item.lng)
   if (map && !isNaN(lat) && !isNaN(lng)) {
     map.flyTo([lat, lng], 16, { duration: 1.2 })
-    alertaActiva.value = item // Abre el popup reactivo
+    alertaActiva.value = item 
   }
 }
 
 const handleActualizarEstado = async ({ id, nuevoEstado }) => {
   console.log('Actualizando estado de alerta:', id, nuevoEstado)
-  // Aquí invocas tu servicio para guardar en Supabase el nuevo estado
   alertaActiva.value = null
 }
 
@@ -143,9 +166,27 @@ onMounted(async () => {
   L.tileLayer(urlTile, { maxZoom: 18, maxNativeZoom: 19 }).addTo(map)
 
   await cargarDatos()
+
+  // CONFIGURAR SUPABASE REALTIME (Escucha constante de la tabla alertas)
+  canalAlertas = supabase
+    .channel('cambios-alertas-operador')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'alertas' },
+      async (payload) => {
+        console.log('Cambio detectado en Supabase Realtime:', payload)
+        // Recargamos los datos automáticamente cuando ocurre un INSERT, UPDATE o DELETE
+        await cargarDatos()
+      }
+    )
+    .subscribe()
 })
 
 onUnmounted(() => {
+  // Limpiar la suscripción y remover el mapa al desmontar el componente
+  if (canalAlertas) {
+    supabase.removeChannel(canalAlertas)
+  }
   if (map) map.remove()
 })
 
