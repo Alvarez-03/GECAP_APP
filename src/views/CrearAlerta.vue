@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Mic, MicOff, Video, Send, Loader2, MapPin, Volume2 } from 'lucide-vue-next'
+import { Mic, MicOff, Video, Send, Loader2, MapPin, Volume2, Navigation, Check } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import { useGeolocation } from '@vueuse/core'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import HeaderCiudadano from '../components/ciudadano/HeaderCiudadano.vue'
 import NavbarCiudadano from '../components/ciudadano/NavbarCiudadano.vue'
 import CardTipoAlerta from '../components/ciudadano/CardTipoAlerta.vue'
@@ -28,6 +30,14 @@ const descripcionAudio = ref('')
 const grabandoVoz = ref(false)
 const datosListos = ref(false)
 
+// Coordenadas manuales o ajustadas por el usuario en el mapa
+const latManual = ref(route.query.lat ? parseFloat(route.query.lat) : null)
+const lngManual = ref(route.query.lng ? parseFloat(route.query.lng) : null)
+const mostrarModalMapa = ref(false)
+const mapContainerMini = ref(null)
+let miniMap = null
+let miniMarker = null
+
 let recognitionInstance = null
 
 // Inicializar helper de voz
@@ -38,11 +48,28 @@ const { iniciarReconocimientoVoz, leerTextoEnVozAlta } = setupSpeech({
   toast
 })
 
+// Obtener lat/lng final (prioriza la manual si el usuario la movió, luego GPS, luego URL)
+const obtenerLatitudActual = () => {
+  if (latManual.value !== null) return latManual.value
+  if (coords.value.latitude && coords.value.latitude !== Infinity && coords.value.latitude !== 0) {
+    return coords.value.latitude
+  }
+  return route.query.lat ? parseFloat(route.query.lat) : 4.0847 // Coordenada por defecto Tuluá
+}
+
+const obtenerLongitudActual = () => {
+  if (lngManual.value !== null) return lngManual.value
+  if (coords.value.longitude && coords.value.longitude !== Infinity && coords.value.longitude !== 0) {
+    return coords.value.longitude
+  }
+  return route.query.lng ? parseFloat(route.query.lng) : -76.1954
+}
+
 const actualizarParametrosURL = (nuevosParametros = {}) => {
   const alertaSeleccionada = listaTiposReportes.value.find(item => item.id === tipoReporteSeleccionado.value)
 
-  const lat = coords.value.latitude !== Infinity && coords.value.latitude !== 0 ? coords.value.latitude : (route.query.lat || '')
-  const lng = coords.value.longitude !== Infinity && coords.value.longitude !== 0 ? coords.value.longitude : (route.query.lng || '')
+  const lat = obtenerLatitudActual()
+  const lng = obtenerLongitudActual()
   const accuracy = coords.value.accuracy ? Math.round(coords.value.accuracy) : (route.query.accuracy || '')
 
   router.replace({
@@ -63,7 +90,7 @@ const actualizarParametrosURL = (nuevosParametros = {}) => {
 watch(
   () => [coords.value.latitude, coords.value.longitude],
   ([nuevaLat, nuevaLng]) => {
-    if (datosListos.value && nuevaLat && nuevaLng && nuevaLat !== Infinity && nuevaLng !== Infinity) {
+    if (datosListos.value && nuevaLat && nuevaLng && nuevaLat !== Infinity && nuevaLng !== Infinity && latManual.value === null) {
       actualizarParametrosURL()
     }
   }
@@ -96,6 +123,49 @@ onMounted(async () => {
     }, 200)
   }
 })
+
+// Abrir modal de mini mapa para ajustar ubicación
+const abrirSelectorUbicacion = async () => {
+  mostrarModalMapa.value = true
+  await nextTick()
+  
+  const currentLat = obtenerLatitudActual()
+  const currentLng = obtenerLongitudActual()
+
+  if (!miniMap && mapContainerMini.value) {
+    miniMap = L.map(mapContainerMini.value).setView([currentLat, currentLng], 15)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(miniMap)
+
+    miniMarker = L.marker([currentLat, currentLng], { draggable: true }).addTo(miniMap)
+
+    // Al arrastrar el marcador manual
+    miniMarker.on('dragend', (event) => {
+      const position = miniMarker.getLatLng()
+      latManual.value = position.lat
+      lngManual.value = position.lng
+    })
+
+    // Al hacer clic en cualquier parte del mini mapa
+    miniMap.on('click', (event) => {
+      const { lat, lng } = event.latlng
+      miniMarker.setLatLng([lat, lng])
+      latManual.value = lat
+      lngManual.value = lng
+    })
+  } else if (miniMap) {
+    miniMap.setView([currentLat, currentLng], 15)
+    miniMarker.setLatLng([currentLat, currentLng])
+    miniMap.invalidateSize()
+  }
+}
+
+const confirmarUbicacionManual = () => {
+  mostrarModalMapa.value = false
+  actualizarParametrosURL()
+  toast.success('Ubicación ajustada correctamente.', { position: 'top-center' })
+}
 
 const seleccionarTipo = (id) => {
   tipoReporteSeleccionado.value = id
@@ -134,11 +204,26 @@ const abrirSelectorEvidencia = () => {
 }
 
 const enviarReporte = async () => {
-  const latitud = coords.value.latitude
-  const longitud = coords.value.longitude
+  const latitud = obtenerLatitudActual()
+  const longitud = obtenerLongitudActual()
 
-  if (!latitud || !longitud || latitud === Infinity || (latitud === 0 && longitud === 0)) {
-    toast.warning('Obteniendo ubicación GPS, espera un momento...', { position: 'top-center' })
+  // Definir las coordenadas por defecto que se usan cuando falla el GPS
+  const LAT_DEFECTO = 4.0847
+  const LNG_DEFECTO = -76.1954
+
+  // Si no hay coordenadas manuales ni GPS real, y sigue teniendo las por defecto, bloqueamos
+  const usaCoordenadasPorDefecto = (latManual.value === null && (coords.value.latitude === Infinity || !coords.value.latitude)) && 
+    (latitud === LAT_DEFECTO && longitud === LNG_DEFECTO)
+    
+
+  if (!latitud || !longitud || latitud === Infinity || usaCoordenadasPorDefecto) {
+    toast.warning('Por favor define tu ubicación exacta en el mapa antes de enviar.', { position: 'top-center' })
+    abrirSelectorUbicacion()
+    return
+  }
+  if (!latitud || !longitud || latitud === Infinity) {
+    toast.warning('Por favor define tu ubicación en el mapa.', { position: 'top-center' })
+    abrirSelectorUbicacion()
     return
   }
 
@@ -208,7 +293,7 @@ const cancelarReporte = () => {
           <p class="text-xs text-slate-400 font-bold">Cargando tipos de alertas...</p>
         </div>
 
-        <div v-else class="max-h-[300px] my-0.5 overflow-y-auto pr-1 space-y-2.5 scroll-smooth custom-scrollbar border-b-2 border-slate-200 pb-2">
+        <div v-else class="max-h-[240px] my-0.5 overflow-y-auto pr-1 space-y-2.5 scroll-smooth custom-scrollbar border-b-2 border-slate-200 pb-2">
           <CardTipoAlerta 
             v-for="item in listaTiposReportes"
             :key="item.id"
@@ -220,6 +305,7 @@ const cancelarReporte = () => {
           />
         </div>
 
+        <!-- SECCIÓN DE DESCRIPCIÓN Y AUDIO -->
         <div class="pt-1">
           <div class="flex items-center justify-between mb-1.5">
             <h3 class="text-[11px] font-black tracking-wider text-slate-500 uppercase">
@@ -261,10 +347,9 @@ const cancelarReporte = () => {
                 placeholder='Ej: "Dos sujetos sospechosos en moto negra merodeando..."'
                 class="w-full p-2.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-600 focus:outline-none resize-none placeholder:text-slate-400 font-medium"
               ></textarea>
-              
             </div>
-            
 
+            <!-- BOTÓN DE EVIDENCIA -->
             <div 
               @click="abrirSelectorEvidencia"
               class="flex items-center justify-between w-full p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all cursor-pointer select-none"
@@ -283,6 +368,7 @@ const cancelarReporte = () => {
                 </div>
               </div>
             </div>
+
           </div>
         </div>
 
@@ -305,19 +391,58 @@ const cancelarReporte = () => {
 
       </main>
 
-      <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-end justify-end">
-        <span v-if="errorUbicacion" class="text-[11px] font-semibold text-red-500 flex items-center gap-1">
-          <MapPin class="w-3.5 h-3.5" />
-          Sin permiso de GPS / Sin ubicación
-        </span>
-        <span v-else-if="coords.latitude === Infinity" class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 animate-pulse">
-          <MapPin class="w-3.5 h-3.5 text-slate-400" />
-          Obteniendo GPS...
-        </span>
-        <span v-else class="text-[11px] font-bold text-slate-600 flex items-center gap-1 tracking-tight">
-          <MapPin class="w-3.5 h-3.5 text-red-600 animate-bounce" />
-          GPS: {{ coords.latitude.toFixed(5) }}, {{ coords.longitude.toFixed(5) }}
-        </span>
+      <!-- BARRA INFERIOR DE ESTADO DE UBICACIÓN + BOTÓN DE CAMBIO MANUAL -->
+      <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-1.5 overflow-hidden">
+          <span v-if="errorUbicacion || coords.latitude === Infinity" class="text-[10px] font-semibold text-red-500 flex items-center gap-1">
+            <MapPin class="w-3.5 h-3.5 shrink-0" />
+            <span>Sin GPS / Ajusta la ubicación</span>
+          </span>
+          <span v-else class="text-[10px] font-bold text-slate-600 flex items-center gap-1 tracking-tight truncate">
+            <MapPin class="w-3.5 h-3.5 text-red-600 shrink-0 animate-bounce" />
+            <span class="truncate">GPS: {{ obtenerLatitudActual().toFixed(5) }}, {{ obtenerLongitudActual().toFixed(5) }}</span>
+          </span>
+        </div>
+
+        <button 
+          type="button"
+          @click="abrirSelectorUbicacion"
+          class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm cursor-pointer shrink-0"
+        >
+          <Navigation class="w-3 h-3" />
+          Cambiar Ubicación
+        </button>
+      </div>
+
+      <!-- MODAL / TARJETA FLOTANTE CON MINI MAPA PARA MOVER EL PIN -->
+      <div v-if="mostrarModalMapa" class="absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col justify-end sm:justify-center p-0 sm:p-4">
+        <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col h-[450px]">
+          
+          <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
+            <div>
+              <h3 class="text-xs font-black uppercase tracking-wider">Ajustar Ubicación del Incidente</h3>
+              <p class="text-[10px] text-slate-400">Mueve el mapa o arrastra el marcador rojo al lugar exacto</p>
+            </div>
+            <button @click="mostrarModalMapa = false" class="text-slate-400 hover:text-white font-bold text-xs p-1">✕</button>
+          </div>
+
+          <!-- Contenedor del Mini Mapa Leaflet -->
+          <div ref="mapContainerMini" class="flex-1 w-full z-10"></div>
+
+          <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+            <span class="text-[10px] text-slate-500 font-mono">
+              Lat: {{ obtenerLatitudActual().toFixed(4) }}, Lng: {{ obtenerLongitudActual().toFixed(4) }}
+            </span>
+            <button 
+              @click="confirmarUbicacionManual"
+              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow cursor-pointer"
+            >
+              <Check class="w-4 h-4" />
+              Confirmar Ubicación
+            </button>
+          </div>
+
+        </div>
       </div>
 
       <NavbarCiudadano />
