@@ -3,7 +3,9 @@ import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { supabase } from '../services/supabase' // Importante para la suscripción
+import { toast } from 'vue3-toastify'
+import 'vue3-toastify/dist/index.css'
+import { supabase } from '../services/supabase'
 import { mapaService } from '../services/mapaService'
 import { reportesService } from '../services/reportesService'
 import { cerrarSesionOperador } from '../services/authService'
@@ -25,13 +27,80 @@ const alertaActiva = ref(null)
 
 let marcadoresBasesMap = {}
 let marcadoresAlertasMap = {}
-let canalAlertas = null // Variable para almacenar la suscripción de Supabase
+let poligonosCuadrantesMap = {} // NUEVO: Almacén de capas de polígonos en Leaflet
+let canalAlertas = null // Suscripción Realtime
+
+// Solicitud de permisos para Notificaciones del Navegador (Escritorio / Dispositivo)
+const solicitarPermisoNotificaciones = () => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+}
+
+// Disparar Notificación Nativa del Sistema/Dispositivo
+const mostrarNotificacionNativa = (alerta) => {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const titulo = `🚨 ¡NUEVA ALERTA RECIBIDA! [${alerta.codigo_seguimiento || 'S/C'}]`
+    const opciones = {
+      body: `Tipo: ${alerta.tipo_alerta || 'Emergencia'}\nDescripción: ${alerta.descripcion || 'Sin detalle'}`,
+      icon: '/shield-icon.png',
+      tag: alerta.id
+    }
+
+    const notificacion = new Notification(titulo, opciones)
+    
+    notificacion.onclick = () => {
+      window.focus()
+      centrarEnElemento(alerta)
+      notificacion.close()
+    }
+  }
+}
+
+// Reproducir síntesis de voz nativa con el código de la alerta
+const reproducirVozAlerta = (alerta) => {
+  try {
+    if (!('speechSynthesis' in window)) {
+      console.warn('La síntesis de voz no es compatible con este navegador.')
+      return
+    }
+
+    // Cancelar cualquier voz anterior que esté hablando para que no se encimen
+    window.speechSynthesis.cancel()
+
+    const textoMensaje = `Atención. Nueva alerta recibida. Código ${alerta}`
+
+    const utterance = new SpeechSynthesisUtterance(textoMensaje)
+    utterance.lang = 'es-CO' // Español de Colombia (ajustado a la región de Tuluá)
+    utterance.rate = 1.0     // Velocidad de lectura normal
+    utterance.pitch = 1.1    // Tono ligeramente más alto para darle dinamismo de alerta
+    utterance.volume = 1.0   // Volumen al máximo
+
+    window.speechSynthesis.speak(utterance)
+  } catch (e) {
+    console.warn('Error al reproducir la voz de alerta:', e)
+  }
+}
+
+const mostrarToastAlerta = (alerta) => {
+  const codigo = alerta.codigo_seguimiento || alerta.tipo_alerta || 'NUEVA ALERTA'
+  
+  toast.error(`🚨 ¡NUEVA ALERTA! Código: ${codigo}. Clic para enfocar en mapa.`, {
+    position: 'top-right',
+    autoClose: 8000,
+    closeOnClick: true,
+    pauseOnHover: true,
+    onClick: () => {
+      centrarEnElemento(alerta)
+    }
+  })
+}
 
 const cargarDatos = async () => {
   cargando.value = true
   const [dataBases, resAlertas] = await Promise.all([
     mapaService.obtenerBasesPoliciales(),
-    reportesService.obtenerTodasLasAlertas()
+    reportesService.obtenerTodasLasAlertas(),
   ])
 
   bases.value = dataBases || []
@@ -39,12 +108,10 @@ const cargarDatos = async () => {
 
   idsSeleccionados.value = bases.value.map(b => b.id)
   
-  // Mantener las alertas seleccionadas previamente si ya existían, si no, seleccionarlas todas
   const idsActualesAlertas = alertas.value.map(a => a.id)
   if (alertasSeleccionadas.value.length === 0) {
     alertasSeleccionadas.value = idsActualesAlertas
   } else {
-    // Agregar nuevas alertas que vayan llegando a la selección por defecto
     const nuevasAlertas = idsActualesAlertas.filter(id => !alertasSeleccionadas.value.includes(id))
     alertasSeleccionadas.value = [...alertasSeleccionadas.value, ...nuevasAlertas]
   }
@@ -65,7 +132,7 @@ watch(
 const actualizarMapa = () => {
   if (!map) return
 
-  // 1. Marcadores de Bases (Normalizando IDs a String o Number para evitar fallos)
+  // 1. Marcadores de Bases
   const idsBasesSeleccionadasStr = idsSeleccionados.value.map(String)
   
   Object.keys(marcadoresBasesMap).forEach((id) => {
@@ -88,7 +155,7 @@ const actualizarMapa = () => {
     }
   })
 
-  // 2. Marcadores de Alertas (Normalizando IDs)
+  // 2. Marcadores de Alertas
   const idsAlertasSeleccionadasStr = alertasSeleccionadas.value.map(String)
 
   Object.keys(marcadoresAlertasMap).forEach((id) => {
@@ -153,6 +220,8 @@ const handleActualizarEstado = async ({ id, nuevoEstado }) => {
 }
 
 onMounted(async () => {
+  solicitarPermisoNotificaciones()
+
   await nextTick()
   if (!mapContainer.value) return
 
@@ -167,15 +236,26 @@ onMounted(async () => {
 
   await cargarDatos()
 
-  // CONFIGURAR SUPABASE REALTIME (Escucha constante de la tabla alertas)
+  // ESCUCHA EN TIEMPO REAL CON NOTIFICACIONES
   canalAlertas = supabase
     .channel('cambios-alertas-operador')
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'alertas' },
+      { event: 'INSERT', schema: 'public', table: 'alertas' },
       async (payload) => {
-        console.log('Cambio detectado en Supabase Realtime:', payload)
-        // Recargamos los datos automáticamente cuando ocurre un INSERT, UPDATE o DELETE
+        const nuevaAlerta = payload.new
+        console.log('🚨 Nueva alerta insertada:', nuevaAlerta)
+
+        await cargarDatos()
+        mostrarToastAlerta(nuevaAlerta)
+        reproducirVozAlerta(nuevaAlerta.tipo_alerta)
+        mostrarNotificacionNativa(nuevaAlerta)
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'alertas' },
+      async () => {
         await cargarDatos()
       }
     )
@@ -183,7 +263,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // Limpiar la suscripción y remover el mapa al desmontar el componente
   if (canalAlertas) {
     supabase.removeChannel(canalAlertas)
   }
@@ -214,7 +293,7 @@ const handleLogout = async () => {
       <!-- Mapa Leaflet -->
       <div ref="mapContainer" class="w-full h-full z-0"></div>
 
-      <!-- POPUP FLOTANTE REUTILIZABLE (PROTOTIPADO) -->
+      <!-- POPUP FLOTANTE REUTILIZABLE -->
       <div 
         v-if="alertaActiva" 
         class="absolute top-6 right-6 z-20"
