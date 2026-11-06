@@ -47,7 +47,7 @@ const volverAInicio = () => {
             class="w-full h-full object-contain"
           />
         </div>
-        <h1 class="text-xs sm:text-sm font-black tracking-wider uppercase leading-tight text-slate-100">
+        <h1 class="text-base sm:text-sm font-black tracking-wider uppercase leading-tight text-slate-100">
           TU REPORTE FUE ENVIADO CON EXITO
         </h1>
       </header>
@@ -66,15 +66,15 @@ const volverAInicio = () => {
 
         <!-- TARJETA DE DETALLES DEL REPORTE -->
         <div class="w-full bg-slate-100/90 rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs text-center space-y-2.5">
-          <h2 class="text-xs font-black text-slate-900 tracking-wider uppercase">
+          <h2 class="text-base font-black text-slate-900 tracking-wider uppercase">
             NUMERO DE REPORTE
           </h2>
           
-          <p class="text-sm sm:text-base font-black text-red-700 italic tracking-wide">
+          <p class="text-base font-black text-red-700 tracking-wide">
             {{ datosReporte.codigoSeguimiento }}
           </p>
 
-          <div class="text-[11px] sm:text-xs text-slate-700 text-left font-medium leading-relaxed space-y-1.5 pt-1">
+          <div class="text-base text-slate-700 text-left font-medium leading-relaxed space-y-1.5 pt-1">
             <p><strong class="font-black text-slate-900">TIPO:</strong> {{ datosReporte.situacion.toUpperCase() }}</p>
             <p><strong class="font-black text-slate-900">UBICACION:</strong> {{ datosReporte.lat }}, {{ datosReporte.lng }}</p>
             <p><strong class="font-black text-slate-900">FECHA:</strong> {{ datosReporte.fecha }}</p>
@@ -87,7 +87,7 @@ const volverAInicio = () => {
         <div class="w-full pt-2">
           <button 
             @click="volverAInicio"
-            class="w-full bg-red-700 hover:bg-red-800 text-white font-black py-3 px-4 rounded-xl shadow-md transition-all cursor-pointer uppercase tracking-wider text-xs active:scale-98"
+            class="w-full bg-gecap-darkblue hover:bg-gecap-darkblue/80 text-white font-black py-3 px-4 rounded-xl shadow-md transition-all cursor-pointer uppercase tracking-wider text-base active:scale-98"
           >
             VOLVER A INICIO
           </button>
@@ -96,20 +96,20 @@ const volverAInicio = () => {
         <!-- ESTADOS INFORMATIVOS INFERIORES -->
         <div class="w-full space-y-2 pt-1 pb-2">
           <div class="flex items-center justify-center gap-2 text-slate-800">
-            <div class="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
-              <MapPin class="w-6 h-6 text-gecap-red" />
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+              <MapPin class="w-8 h-8 text-gecap-green" />
             </div>
-            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-tight">
-              TU UBICACIÓN ESTA SIENDO TOMADA
+            <span class="text-[12px] font-normal tracking-tight">
+              Tu Ubicación Fue Tomada Para El Reporte.
             </span>
           </div>
 
           <div class="flex items-center justify-center gap-2 text-slate-800">
-            <div class="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
-              <Shield class="w-6 h-6 text-gecap-red" />
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+              <Shield class="w-8 h-8 text-gecap-green" />
             </div>
-            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-tight">
-              ALERTANDO A LAS AUTORIDADES
+            <span class="text-[12px] sm:text-[11px] font-normal tracking-tight">
+              La Policia Nacional de Colombia ya fue alertada.
             </span>
           </div>
         </div>

@@ -40,7 +40,7 @@ const handleClick = (event) => {
 }
 
 const buttonStyles = computed(() => {
-  const base = "w-full md:w-auto font-bold py-3 px-5 rounded-xl shadow-xs transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-2 text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+  const base = "w-full md:w-auto font-bold py-3 px-5 rounded-xl shadow-xs transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-2 text-base md:text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
 
   if (props.type === 'login') {
     return `${base} bg-white hover:bg-slate-100 border border-slate-300 text-slate-800`

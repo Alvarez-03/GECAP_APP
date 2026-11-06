@@ -290,7 +290,7 @@ const cancelarReporte = () => {
 
         <div v-if="cargando" class="flex flex-col items-center justify-center py-10">
           <Loader2 class="w-8 h-8 animate-spin text-red-600 mb-2" />
-          <p class="text-xs text-slate-400 font-bold">Cargando tipos de alertas...</p>
+          <p class="text-base text-slate-400 font-bold">Cargando tipos de alertas...</p>
         </div>
 
         <div v-else class="max-h-[240px] my-0.5 overflow-y-auto pr-1 space-y-2.5 scroll-smooth custom-scrollbar border-b-2 border-slate-200 pb-2">
@@ -308,34 +308,34 @@ const cancelarReporte = () => {
         <!-- SECCIÓN DE DESCRIPCIÓN Y AUDIO -->
         <div class="pt-1">
           <div class="flex items-center justify-between mb-1.5">
-            <h3 class="text-[11px] font-black tracking-wider text-slate-500 uppercase">
+            <h3 class="text-base font-black tracking-wider text-slate-500 uppercase">
               DESCRIPCIÓN Y AUDIO DEL REPORTE
             </h3>
-            <button 
-              type="button"
-              @click="toggleGrabacionVoz"
-              :class="[
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-sm cursor-pointer',
-                grabandoVoz 
-                  ? 'bg-red-600 text-white animate-pulse' 
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              ]"
-            >
-              <Mic v-if="!grabandoVoz" class="w-3.5 h-3.5 text-red-600" />
-              <MicOff v-else class="w-3.5 h-3.5 text-white" />
-              {{ grabandoVoz ? 'Escuchando...' : 'Dictar por voz' }}
-            </button>
           </div>
+          <button 
+            type="button"
+            @click="toggleGrabacionVoz"
+            :class="[
+              'flex items-center mb-2 px-2.5 py-1 rounded-md text-base font-bold transition-all shadow-sm cursor-pointer',
+              grabandoVoz 
+                ? 'bg-gecap-darkblue/70 text-white animate-pulse' 
+                : 'bg-gecap-darkblue text-white hover:bg-gecap-darkblue/70'
+            ]"
+          >
+            <Mic v-if="!grabandoVoz" class="w-4 h-4 text-white" />
+            <MicOff v-else class="w-4 h-4 text-white" />
+            {{ grabandoVoz ? ' Escuchando...' : ' Dictar por voz descripción del reporte.' }}
+          </button>
 
-          <div class="space-y-2.5">
+          <div class="space-y-2.5 mt-2">
             <div class="flex items-center justify-between mt-1">
-                <span class="text-[10px] text-slate-400 font-medium">Escucha tu reporte antes de enviarlo:</span>
+                <span class="text-[14px] text-slate-400 font-medium">Escucha tu reporte antes de enviarlo:</span>
                 <button 
                     type="button"
                     @click="leerTextoEnVozAlta(descripcionAudio)"
-                    class="flex items-center gap-1 px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[10px] font-bold transition-colors cursor-pointer"
+                    class="flex items-center gap-1 px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[12px] font-bold transition-colors cursor-pointer"
                 >
-                <Volume2 class="w-3.5 h-3.5 text-gecap-darkblue" />
+                <Volume2 class="w-4 h-4 text-gecap-darkblue" />
                  Reproducir audio
                 </button>
             </div>
@@ -345,25 +345,25 @@ const cancelarReporte = () => {
                 @input="handleInputTexto"
                 rows="2"
                 placeholder='Ej: "Dos sujetos sospechosos en moto negra merodeando..."'
-                class="w-full p-2.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-600 focus:outline-none resize-none placeholder:text-slate-400 font-medium"
+                class="w-full p-2.5 text-base text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-600 focus:outline-none resize-none placeholder:text-slate-400 font-medium"
               ></textarea>
             </div>
 
             <!-- BOTÓN DE EVIDENCIA -->
             <div 
               @click="abrirSelectorEvidencia"
-              class="flex items-center justify-between w-full p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all cursor-pointer select-none"
+              class="flex items-center justify-between w-full p-2.5 bg-gecap-darkblue rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all cursor-pointer select-none"
             >
               <div class="flex items-center gap-3.5">
-                <div class="w-10 h-10 bg-red-700 rounded-xl flex items-center justify-center text-white shadow-inner flex-shrink-0">
-                  <Video class="w-5 h-5" />
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner flex-shrink-0">
+                  <Video class="w-8 h-8" />
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-xs font-black tracking-wide text-slate-900 uppercase">
-                    EVIDENCIA
+                  <span class="text-base font-black tracking-wide text-white uppercase">
+                    Agregar Evidencia
                   </span>
-                  <span class="text-[10px] font-medium text-slate-500 leading-tight mt-0.5">
-                    TOMA FOTOS PARA EL REPORTE
+                  <span class="text-[10px] font-medium text-white leading-tight mt-0.5">
+                    Toma fotos o selecciona fotos para realizar reportes.
                   </span>
                 </div>
               </div>
@@ -375,17 +375,17 @@ const cancelarReporte = () => {
         <div class="pt-2 pb-1 space-y-2">
           <button 
             @click="enviarReporte"
-            class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer uppercase tracking-wider text-xs"
+            class="w-full bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer uppercase tracking-wider text-base"
           >
-            <Send class="w-4 h-4 text-red-500" />
-            ENVIAR REPORTE
+            <Send class="w-4 h-4 text-white" />
+            Enviar Reporte
           </button>
 
           <button 
             @click="cancelarReporte"
-            class="w-full text-center text-red-700 hover:text-red-800 font-black text-xs uppercase tracking-wider transition-colors cursor-pointer py-0.5"
+            class="w-full text-center text-gecap-blue hover:text-gecap-blue font-black text-base uppercase tracking-wider transition-colors cursor-pointer py-0.5"
           >
-            CANCELAR REPORTE
+            Cancelar Reporte
           </button>
         </div>
 
@@ -394,12 +394,12 @@ const cancelarReporte = () => {
       <!-- BARRA INFERIOR DE ESTADO DE UBICACIÓN + BOTÓN DE CAMBIO MANUAL -->
       <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
         <div class="flex items-center gap-1.5 overflow-hidden">
-          <span v-if="errorUbicacion || coords.latitude === Infinity" class="text-[10px] font-semibold text-red-500 flex items-center gap-1">
+          <span v-if="errorUbicacion || coords.latitude === Infinity" class="text-[10px] font-semibold text-gecap-blue flex items-center gap-1">
             <MapPin class="w-3.5 h-3.5 shrink-0" />
             <span>Sin GPS / Ajusta la ubicación</span>
           </span>
           <span v-else class="text-[10px] font-bold text-slate-600 flex items-center gap-1 tracking-tight truncate">
-            <MapPin class="w-3.5 h-3.5 text-red-600 shrink-0 animate-bounce" />
+            <MapPin class="w-3.5 h-3.5 text-gecap-blue shrink-0 animate-bounce" />
             <span class="truncate">GPS: {{ obtenerLatitudActual().toFixed(5) }}, {{ obtenerLongitudActual().toFixed(5) }}</span>
           </span>
         </div>
@@ -407,7 +407,7 @@ const cancelarReporte = () => {
         <button 
           type="button"
           @click="abrirSelectorUbicacion"
-          class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm cursor-pointer shrink-0"
+          class="px-2.5 py-1 bg-gecap-darkblue hover:bg-gecap-darkblue text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm cursor-pointer shrink-0"
         >
           <Navigation class="w-3 h-3" />
           Cambiar Ubicación
@@ -420,10 +420,10 @@ const cancelarReporte = () => {
           
           <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
             <div>
-              <h3 class="text-xs font-black uppercase tracking-wider">Ajustar Ubicación del Incidente</h3>
+              <h3 class="text-base font-black uppercase tracking-wider">Ajustar Ubicación del Incidente</h3>
               <p class="text-[10px] text-slate-400">Mueve el mapa o arrastra el marcador rojo al lugar exacto</p>
             </div>
-            <button @click="mostrarModalMapa = false" class="text-slate-400 hover:text-white font-bold text-xs p-1">✕</button>
+            <button @click="mostrarModalMapa = false" class="text-slate-400 hover:text-white font-bold text-base p-1">✕</button>
           </div>
 
           <!-- Contenedor del Mini Mapa Leaflet -->
@@ -435,7 +435,7 @@ const cancelarReporte = () => {
             </span>
             <button 
               @click="confirmarUbicacionManual"
-              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow cursor-pointer"
+              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-base font-black uppercase tracking-wider flex items-center gap-1.5 shadow cursor-pointer"
             >
               <Check class="w-4 h-4" />
               Confirmar Ubicación

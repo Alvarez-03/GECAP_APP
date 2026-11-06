@@ -77,13 +77,13 @@ const volver = () => { router.push('/') }
             <button 
               @click="volver" 
               type="button"
-              class="text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 group text-xs font-semibold"
+              class="text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 group text-base font-semibold"
             >
               <ChevronLeft class="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
               <span>Volver</span>
             </button>
-            <span class="text-[10px] tracking-widest text-slate-400 uppercase font-black lg:hidden">
-              INICIAR SESIÓN
+            <span class="text-sm tracking-widest text-slate-400 font-black lg:hidden">
+              Portal Ciudadano
             </span>
           </div>
 
@@ -101,16 +101,16 @@ const volver = () => { router.push('/') }
 
             <div class="space-y-0.5">
               <h1 class="text-base sm:text-lg lg:text-2xl font-black tracking-tight text-white">
-                GECAP ALERTA
+                GECAP
               </h1>
-              <p class="text-[10px] sm:text-xs lg:text-sm text-slate-300 font-medium max-w-xs mx-auto">
-                Plataforma de Alertas y Reportes Ciudadanos
+              <p class="text-[14px] sm:text-xs lg:text-sm text-slate-300 font-medium max-w-xs mx-auto">
+                Gestión Estratégica de Cuadrantes y Atención Policial
               </p>
             </div>
           </div>
 
           <!-- Pie Institucional en PC -->
-          <div class="hidden lg:block text-[11px] text-slate-400 font-semibold tracking-wide">
+          <div class="hidden lg:block text-[16px] text-slate-400 font-semibold tracking-wide">
             Policía Nacional & Alcaldía Municipal
           </div>
         </div>
@@ -124,11 +124,11 @@ const volver = () => { router.push('/') }
           <div class="w-full space-y-3 sm:space-y-5 my-auto">
             
             <!-- Encabezado de Formulario -->
-            <div class="text-center lg:text-left space-y-0.5">
-              <h2 class="text-red-700 font-black text-sm lg:text-base tracking-wide uppercase">
-                INGRESA PARA GENERAR REPORTES
+            <div class="text-center lg:text-left space-y-1.5 mb-3">
+              <h2 class="text-gecap-darkblue font-black text-base tracking-wide">
+                Ingresa para generar reportes de alertas en Tuluá.
               </h2>
-              <p class="text-[11px] text-xs text-slate-500 font-semibold">
+              <p class="text-[14px]  text-slate-700 font-semibold">
                 Introduce tus credenciales para acceder
               </p>
             </div>
@@ -147,41 +147,45 @@ const volver = () => { router.push('/') }
               
               <!-- Campo: Correo Electrónico -->
               <div>
-                <label class="block text-[11px] text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
-                  CORREO ELECTRÓNICO
+                <label class="block text-base font-black text-slate-800  tracking-wide mb-1">
+                  Correo Electrónico
                 </label>
+                <span class="text-xs text-slate-500 font-normal">Escribe tu correo electrónico en el siguiente campo.</span>
                 <div class="relative flex items-center border-b-2 border-slate-700 py-1 focus-within:border-red-700 transition-colors">
-                  <Mail class="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 mr-2 shrink-0" />
+                  <Mail class="w-6 h-6 sm:w-6 sm:h-6 text-slate-700 mr-2 shrink-0" />
                   <input 
+                    title="Correo electrónico"
                     v-model="form.email"
                     type="email"
                     placeholder="ejemplo@correo.com"
                     required
-                    class="w-full bg-transparent text-slate-800 text-sm font-semibold focus:outline-none placeholder-slate-400"
+                    class="w-full bg-transparent text-slate-800 text-base font-semibold focus:outline-none placeholder-slate-400"
                   />
                 </div>
               </div>
 
               <!-- Campo: Contraseña -->
               <div>
-                <label class="block text-[11px] text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
-                  CONTRASEÑA
+                <label class="block text-base font-black text-slate-800  tracking-wide mb-1">
+                  Contraseña
                 </label>
+                <span class="text-xs text-slate-500 font-normal">Escribe tu contraseña en el siguiente campo.</span>
                 <div class="relative flex items-center border-b-2 border-slate-700 py-1 focus-within:border-red-700 transition-colors">
-                  <Lock class="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 mr-2 shrink-0" />
+                  <Lock class="w-6 h-6 sm:w-6 sm:h-6 text-slate-700 mr-2 shrink-0" />
                   <input 
+                    title="Contraseña"
                     v-model="form.password"
                     :type="showPassword ? 'text' : 'password'"
                     placeholder="************"
                     required
-                    class="w-full bg-transparent text-slate-800 text-sm font-semibold focus:outline-none placeholder-slate-400 pr-8"
+                    class="w-full bg-transparent text-slate-800 text-base font-semibold focus:outline-none placeholder-slate-400 pr-8"
                   />
                   <button 
                     type="button" 
                     @click="showPassword = !showPassword"
                     class="absolute right-0 text-slate-400 hover:text-slate-700 cursor-pointer p-1 transition-colors"
                   >
-                    <component :is="showPassword ? EyeOff : Eye" class="w-4 h-4" />
+                    <component :is="showPassword ? EyeOff : Eye" class="w-6 h-6" />
                   </button>
                 </div>
               </div>
@@ -191,7 +195,7 @@ const volver = () => { router.push('/') }
                 <button 
                   type="submit"
                   :disabled="isSubmitting"
-                  class="w-full bg-[#b91c1c] hover:bg-[#991b1b] text-white font-black py-2.5 sm:py-3.5 px-4 rounded-xl text-base tracking-wider uppercase shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                  class="w-full bg-gecap-darkblue hover:bg-gecap-darkblue/70 text-white font-black py-2.5 sm:py-3.5 px-4 rounded-xl text-base tracking-wider  shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
                 >
                   {{ isSubmitting ? 'INGRESANDO...' : 'INGRESAR' }}
                 </button>
@@ -205,7 +209,7 @@ const volver = () => { router.push('/') }
             <div>
               <button 
                 type="button" 
-                class="text-slate-600 font-bold text-[11px] sm:text-xs hover:text-slate-900 underline cursor-pointer transition-colors"
+                class="text-slate-600 font-bold text-[14px] sm:text-xs hover:text-slate-900 underline cursor-pointer transition-colors"
                 @click="$router.push('/olvidar-password')"
               >
                 ¿Olvidaste tu contraseña?
@@ -216,7 +220,7 @@ const volver = () => { router.push('/') }
               <button 
                 type="button" 
                 @click="irAlRegistro"
-                class="text-[#b91c1c] font-black text-[11px] sm:text-xs underline hover:text-red-800 cursor-pointer uppercase tracking-wide transition-colors"
+                class="text-gecap-darkblue font-black text-[14px] sm:text-xs underline hover:text-red-800 cursor-pointer tracking-wide transition-colors"
               >
                 ¿Aún no estás registrado?
               </button>

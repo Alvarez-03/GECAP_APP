@@ -84,12 +84,12 @@ const ejecutarCierreSesion = async () => {
           class="w-full h-full object-contain"
         />
       </div>
-      <span class="text-sm font-black tracking-wider uppercase">GECAP</span>
+      <span class="text-base font-black tracking-wider uppercase">GECAP</span>
     </div>
     
     <div class="flex items-center gap-3">
       <button @click="solicitarCierreSesion" class="text-gecap-red font-extrabold hover:text-white transition-colors cursor-pointer flex items-center gap-1" title="Cerrar Sesión">
-        <LogOut class="w-5 h-5" />
+        <LogOut class="w-6 h-6" />
         <span>Salir</span>
       </button>
     </div>

@@ -61,7 +61,7 @@ const activarEmergencia = () => router.push('/crearReporte')
       <main class="flex-1 px-6 py-6 flex flex-col justify-start overflow-y-auto">
         <div class="mb-6">
           <h1 class="text-2xl sm:text-3xl font-black text-slate-900">
-            Hola, <span class="text-slate-900">{{ nombreUsuario }}</span>
+            Bienvenido, <span class="text-slate-900">{{ nombreUsuario }}!</span>
           </h1>
         </div>
 
@@ -69,18 +69,18 @@ const activarEmergencia = () => router.push('/crearReporte')
         <BotonPanico @activar="activarEmergencia" />
 
       <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-center">
-        <span v-if="errorUbicacion" class="text-[11px] font-semibold text-red-500 flex items-center gap-1">
-          <MapPin class="w-3.5 h-3.5" />
+        <span v-if="errorUbicacion" class="text-[14px] font-semibold text-gecap-red flex items-center gap-1">
+          <MapPin class="w-4 h-4" />
           Sin permiso de GPS / Sin ubicación
         </span>
 
-        <span v-else-if="coords.latitude === Infinity" class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 animate-pulse">
-          <MapPin class="w-3.5 h-3.5 text-slate-400" />
+        <span v-else-if="coords.latitude === Infinity" class="text-[14px] font-semibold text-slate-400 flex items-center gap-1 animate-pulse">
+          <MapPin class="w-4 h-4 text-amber-400" />
           Obteniendo GPS...
         </span>
 
-        <span v-else class="text-[11px] font-bold text-slate-600 flex items-center gap-1 tracking-tight">
-          <MapPin class="w-3.5 h-3.5 text-red-600 animate-bounce" />
+        <span v-else class="text-[14px] font-bold text-gecap-red flex items-center gap-1 tracking-tight">
+          <MapPin class="w-4 h-4 text-red-600 animate-bounce" />
           GPS: {{ coords.latitude.toFixed(5) }}, {{ coords.longitude.toFixed(5) }}
         </span>
       </div>
