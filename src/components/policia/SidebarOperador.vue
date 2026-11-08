@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { Shield, LogOut, MapPin, RefreshCw, ChevronDown, ChevronUp, CheckSquare, Square, Siren, Bell } from 'lucide-vue-next'
+import { RefreshCw, ChevronDown, ChevronUp, CheckSquare, Square, Siren, Bell, House } from 'lucide-vue-next'
 
 const props = defineProps({
   bases: { type: Array, default: () => [] },
@@ -10,7 +10,7 @@ const props = defineProps({
   alertasSeleccionadas: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['logout', 'centrar', 'centrarAlerta', 'recargar', 'update:idsSeleccionados', 'update:alertasSeleccionadas'])
+const emit = defineEmits(['Back', 'centrar', 'centrarAlerta', 'recargar', 'update:idsSeleccionados', 'update:alertasSeleccionadas'])
 
 // Control de acordeones
 const mostrarBases = ref(true)
@@ -63,11 +63,10 @@ const deseleccionarTodasEstaciones = () => emit('update:idsSeleccionados', [])
     <!-- Topbar -->
     <div class="p-4 border-b border-slate-700 flex items-center justify-between">
       <div class="flex items-center gap-2 text-white">
-        <Shield class="w-6 h-6 text-blue-500 shrink-0" />
         <span class="font-black tracking-wide text-sm uppercase">Centro de Control</span>
       </div>
-      <button @click="$emit('logout')" title="Cerrar Sesión" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition cursor-pointer">
-        <LogOut class="w-5 h-5" />
+      <button @click="$emit('Back')" title="Cerrar Sesión" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition cursor-pointer">
+        <House class="w-5 h-5" />
       </button>
     </div>
 

@@ -14,6 +14,8 @@ import PerfilView from '../views/PerfilView.vue'
 import MapaView from '../views/MapaView.vue'
 import LoginOperadorView from '../views/LoginOperadorView.vue'
 import MapaOperadorView from '../views/MapaOperadorView.vue'
+import DashboardOperadorView from '../views/DashboardOperadorView.vue'
+import GestionOperadoresView from '../views/GestionOperadoresView.vue'
 
 const routes = [
   {
@@ -92,6 +94,18 @@ const routes = [
     path: '/policia/mapa',
     name: 'mapa-policia',
     component: MapaOperadorView,
+    meta: { requiresAuth: true, requiresOperator: true }
+  },
+  {
+    path: '/policia/MenuPrincipal',
+    name: 'MenuPrincipal-policia',
+    component: DashboardOperadorView,
+    meta: { requiresAuth: true, requiresOperator: true }
+  },
+  {
+    path: '/policia/operadores',
+    name: 'GestionOPeradores',
+    component: GestionOperadoresView,
     meta: { requiresAuth: true, requiresOperator: true }
   }
 ]

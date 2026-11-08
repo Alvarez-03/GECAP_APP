@@ -18,7 +18,7 @@ const handleLogin = async () => {
     const resultado = await iniciarSesionOperador(email.value, password.value)
     if (resultado.success) {
       localStorage.setItem('operador_gecap', JSON.stringify(resultado.perfil))
-      router.push('/policia/mapa')
+      router.push('/policia/MenuPrincipal')
     }
   } catch (error) {
     mensajeError.value = error.message || 'Credenciales inválidas o cuenta no autorizada.'

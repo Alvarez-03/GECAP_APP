@@ -190,6 +190,60 @@ export const actualizarPasswordCiudadano = async (email, nuevaPassword) => {
 // ==========================================
 // SECCIÓN: OPERADORES POLICIALES
 // ==========================================
+// Registrar operador (Crea el auth y guarda el user_id en la tabla operador_cuadrantes)
+export const registrarOperador = async (operatorData) => {
+  try {
+    if (!operatorData.email || !operatorData.password) {
+      throw new Error('El correo electrónico y la contraseña son obligatorios.')
+    }
+
+    // 1. Crear autenticación en Supabase Auth para el operador
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: operatorData.email,
+      password: operatorData.password,
+    })
+
+    if (authError) {
+      if (authError.message.includes('already registered')) {
+        throw new Error('Este correo electrónico ya se encuentra registrado como operador.')
+      }
+      throw new Error(authError.message)
+    }
+
+    const userId = authData.user?.id
+    if (!userId) throw new Error('No se pudo obtener el identificador de autenticación del operador.')
+
+    // 2. Limpiar id_cuadrante si viene vacío para evitar fallos de UUID en base de datos
+    const cuadranteValido = operatorData.id_cuadrante && operatorData.id_cuadrante.trim() !== '' 
+      ? operatorData.id_cuadrante 
+      : null
+
+    // 3. Insertar perfil en la tabla 'operador_cuadrantes' enlazando el 'user_id'
+    const { error: dbError } = await supabase
+      .from('operador_cuadrantes')
+      .insert([
+        {
+          user_id: userId,
+          nombre_completo: operatorData.nombre_completo,
+          placa_identificacion: operatorData.placa_identificacion,
+          rango: operatorData.rango || 'Patrullero',
+          rol: operatorData.rol || 'OPERADOR',
+          email: operatorData.email,
+          id_cuadrante: cuadranteValido
+        }
+      ])
+
+    if (dbError) {
+      console.error('Error en base de datos al guardar operador:', dbError)
+      throw new Error('Error al guardar el perfil del operador en la tabla operador_cuadrantes.')
+    }
+
+    return { success: true, user: authData.user }
+  } catch (error) {
+    console.error('Error en el servicio de registro de operador:', error.message)
+    throw new Error(error.message || 'Ocurrió un error al registrar el operador.')
+  }
+}
 
 // Iniciar sesión operador policial
 export const iniciarSesionOperador = async (email, password) => {
@@ -206,7 +260,7 @@ export const iniciarSesionOperador = async (email, password) => {
 
     const userId = authData.user.id
 
-    // 2. Consultar el perfil en la tabla de operador_cuadrantes
+    // 2. Consultar el perfil en la tabla de operador_cuadrantes usando 'user_id'
     const { data: operadorData, error: operadorError } = await supabase
       .from('operador_cuadrantes')
       .select('*')
