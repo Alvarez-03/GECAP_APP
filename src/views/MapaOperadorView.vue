@@ -269,9 +269,8 @@ onUnmounted(() => {
   if (map) map.remove()
 })
 
-const handleLogout = async () => {
-  await cerrarSesionOperador()
-  router.push('/policia/login')
+const handleBack = async () => {
+  router.push('/policia/MenuPrincipal')
 }
 </script>
 
@@ -283,7 +282,7 @@ const handleLogout = async () => {
       :cargando="cargando"
       v-model:idsSeleccionados="idsSeleccionados"
       v-model:alertasSeleccionadas="alertasSeleccionadas"
-      @logout="handleLogout"
+      @Back="handleBack"
       @centrar="centrarEnElemento"
       @centrarAlerta="centrarEnElemento"
       @recargar="cargarDatos"
