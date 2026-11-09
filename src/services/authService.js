@@ -53,7 +53,8 @@ export const registrarCiudadano = async (userData) => {
           email: userData.email,
           telefono: userData.phone,
           direccion: userData.neighborhood || null,
-          rol: 'CIUDADANO'
+          rol: 'CIUDADANO',
+          activo: true
         }
       ])
 
@@ -106,6 +107,13 @@ export const iniciarSesionCiudadano = async (email, password) => {
         .maybeSingle()
       
       perfilFinal = perfilPorEmail
+    }
+
+    // 4. VALIDAR SI EL USUARIO ESTÁ BLOQUEADO (activo === false)
+    if (perfilFinal && perfilFinal.activo === false) {
+      // Cerramos la sesión de inmediato en Supabase ya que está bloqueado
+      await supabase.auth.signOut()
+      throw new Error('Tu cuenta se encuentra bloqueada por políticas de seguridad de la plataforma. Contacta al administrador.')
     }
 
     return { 
@@ -185,6 +193,24 @@ export const actualizarPasswordCiudadano = async (email, nuevaPassword) => {
     console.error('Error al cambiar la contraseña:', error.message)
     throw new Error(error.message || 'Ocurrió un error al actualizar la contraseña.')
   }
+}
+
+// Cambiar el estado de un ciudadano (Activo / Bloqueado) usando user_id
+export const cambiarEstadoCiudadanoService = async (userId, nuevoEstado) => {
+  const { data, error } = await supabase
+    .from('ciudadanos')
+    .update({ activo: nuevoEstado })
+    .eq('user_id', userId)
+    .select() // 👈 Esto obliga a Supabase a devolver los registros afectados
+
+  if (error) throw error
+
+  // Si data está vacío o no viene nada, significa que la fila no existía o RLS la bloqueó
+  if (!data || data.length === 0) {
+    throw new Error('No se encontró el registro del ciudadano en la base de datos o las políticas de seguridad (RLS) impidieron la actualización.')
+  }
+
+  return true
 }
 
 // ==========================================

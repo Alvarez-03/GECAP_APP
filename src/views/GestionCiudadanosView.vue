@@ -1,17 +1,23 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Users, Search, ArrowLeft, RefreshCw, Mail, Phone, MapPin, CreditCard, Shield, Loader2, UserCheck } from 'lucide-vue-next'
+import { Users, Search, ArrowLeft, RefreshCw, Mail, Phone, MapPin, CreditCard, Shield, Loader2, UserCheck, Lock, Unlock, AlertTriangle } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import 'vue3-toastify/dist/index.css'
 
 // Importar servicio de ciudadanos
 import { obtenerCiudadanosService } from '../services/ciudadanoService'
+import { cambiarEstadoCiudadanoService } from '../services/authService'
 
 const router = useRouter()
 const ciudadanos = ref([])
 const cargando = ref(true)
 const busqueda = ref('')
+const procesandoId = ref(null)
+
+// Estados para el Modal de Confirmación
+const mostrarModalConfirmacion = ref(false)
+const ciudadanoSeleccionado = ref(null)
 
 // Consultar datos de ciudadanos desde Supabase
 const cargarCiudadanos = async () => {
@@ -29,6 +35,38 @@ const cargarCiudadanos = async () => {
 onMounted(() => {
   cargarCiudadanos()
 })
+
+// Abrir el modal de confirmación antes de cambiar el estado
+const abrirModalConfirmar = (c) => {
+  ciudadanoSeleccionado.value = c
+  mostrarModalConfirmacion.value = true
+}
+
+// Ejecutar el cambio de estado (Bloquear / Activar) tras confirmar en el modal
+const confirmarCambioEstado = async () => {
+  if (!ciudadanoSeleccionado.value) return
+
+  const ciudadano = ciudadanoSeleccionado.value
+  const nuevoEstado = !ciudadano.activo
+  const accionTexto = nuevoEstado ? 'activado' : 'bloqueado'
+
+  try {
+    procesandoId.value = ciudadano.user_id
+    await cambiarEstadoCiudadanoService(ciudadano.user_id, nuevoEstado)
+    
+    // Actualizar estado localmente en la tabla
+    ciudadano.activo = nuevoEstado
+    
+    toast.success(`¡Ciudadano ${accionTexto} exitosamente!`, { position: 'top-center' })
+    mostrarModalConfirmacion.value = false
+    ciudadanoSeleccionado.value = null
+  } catch (error) {
+    console.error('Error al cambiar estado:', error)
+    toast.error(error.message || 'No se pudo actualizar el estado del ciudadano.', { position: 'top-center' })
+  } finally {
+    procesandoId.value = null
+  }
+}
 
 // Filtrar ciudadanos por nombre, documento, email o teléfono en tiempo real
 const ciudadanosFiltrados = computed(() => {
@@ -137,6 +175,8 @@ const volverAlDashboard = () => {
                 <th class="py-3.5 px-4">Teléfono</th>
                 <th class="py-3.5 px-4">Dirección / Sector</th>
                 <th class="py-3.5 px-4">Fecha Registro</th>
+                <th class="py-3.5 px-4">Estado Cuenta</th>
+                <th class="py-3.5 px-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/60 text-sm font-medium text-slate-300">
@@ -154,7 +194,7 @@ const volverAlDashboard = () => {
                   </div>
                 </td>
 
-                <!-- Documento -->
+                <!-- Documento Tipo -->
                 <td class="text-center py-3.5 px-4">
                   <div class="flex flex-col gap-0.5">
                     <span class="items-center text-center gap-1 text-slate-200 font-bold">
@@ -162,6 +202,8 @@ const volverAlDashboard = () => {
                     </span>
                   </div>
                 </td>
+                
+                <!-- Documento Número -->
                 <td class="text-center py-3.5 px-4">
                   <div class="flex flex-col gap-0.5">
                     <span class="inline-flex items-center gap-1 text-slate-200 font-bold">
@@ -170,7 +212,7 @@ const volverAlDashboard = () => {
                   </div>
                 </td>
 
-                <!-- Contacto -->
+                <!-- Contacto Correo -->
                 <td class="text-center py-3.5 px-4">
                   <div class="flex flex-col items-center gap-1">
                     <span class="inline-flex items-center gap-1.5 text-slate-300">
@@ -179,7 +221,7 @@ const volverAlDashboard = () => {
                   </div>
                 </td>
 
-                <!-- Contacto -->
+                <!-- Contacto Teléfono -->
                 <td class="text-center py-3.5 px-4">
                   <div class="flex flex-col items-center gap-1">
                     <span class="inline-flex items-center gap-1.5 text-slate-400 text-xs font-mono">
@@ -200,6 +242,31 @@ const volverAlDashboard = () => {
                 <td class="text-center py-3.5 px-4 text-slate-400 font-mono text-[11px]">
                   {{ c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A' }}
                 </td>
+
+                <!-- Estado (Activo / Bloqueado) -->
+                <td class="py-3.5 px-4 text-center">
+                  <span 
+                    :class="c.activo !== false ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'"
+                    class="px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border inline-block"
+                  >
+                    {{ c.activo !== false ? 'ACTIVO' : 'BLOQUEADO' }}
+                  </span>
+                </td>
+
+                <!-- Acciones (Bloquear / Activar) -->
+                <td class="py-3.5 px-4 text-center">
+                    <button 
+                        @click="abrirModalConfirmar(c)"
+                        :disabled="procesandoId === c.user_id"
+                        :title="c.activo !== false ? 'Bloquear cuenta' : 'Activar cuenta'"
+                        :class="c.activo !== false ? 'bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white' : 'bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white'"
+                        class="p-2 rounded-xl transition-all cursor-pointer inline-flex items-center justify-center shadow disabled:opacity-50"
+                    >
+                        <Loader2 v-if="procesandoId === c.user_id" class="w-4 h-4 animate-spin" />
+                        <Lock v-else-if="c.activo !== false" class="w-4 h-4" />
+                        <Unlock v-else class="w-4 h-4" />
+                    </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -207,6 +274,59 @@ const volverAlDashboard = () => {
       </div>
 
     </main>
+
+    <!-- MODAL DE CONFIRMACIÓN -->
+    <div v-if="mostrarModalConfirmacion" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        
+        <!-- Cabecera del Modal -->
+        <div class="p-4 bg-gecap-darkblue border-b border-gecap-darkblue flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+            <AlertTriangle class="w-4 h-4" />
+          </div>
+          <h3 class="text-sm font-black uppercase tracking-wider text-white">
+            Confirmar Cambio de Estado
+          </h3>
+        </div>
+
+        <!-- Contenido del Modal -->
+        <div class="p-6 space-y-3 text-gecap-darkblue">
+          <p class="text-sm font-medium">
+            ¿Estás seguro de que deseas 
+            <strong :class="ciudadanoSeleccionado?.activo !== false ? 'text-red-600' : 'text-emerald-600'">
+              {{ ciudadanoSeleccionado?.activo !== false ? 'bloquear' : 'activar' }}
+            </strong> 
+            al ciudadano:
+          </p>
+          <div class="p-3 bg-slate-100 rounded-xl border border-slate-200 font-bold text-center uppercase text-slate-800">
+            {{ ciudadanoSeleccionado?.nombre_completo }}
+          </div>
+          <p class="text-xs text-slate-500">
+            {{ ciudadanoSeleccionado?.activo !== false ? 'Al bloquearlo, el usuario no podrá iniciar sesión en la plataforma móvil.' : 'Al activarlo, el usuario recuperará el acceso inmediato al sistema.' }}
+          </p>
+        </div>
+
+        <!-- Botones del Modal -->
+        <div class="p-4 bg-slate-100 border-t border-slate-200 flex items-center justify-end gap-3">
+          <button 
+            @click="mostrarModalConfirmacion = false"
+            class="px-4 py-2 bg-slate-300 hover:bg-slate-400 text-slate-800 rounded-xl text-sm font-bold transition-colors cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="confirmarCambioEstado"
+            :disabled="procesandoId !== null"
+            :class="ciudadanoSeleccionado?.activo !== false ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'"
+            class="px-5 py-2 text-white rounded-xl text-sm font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg cursor-pointer disabled:opacity-50"
+          >
+            <Loader2 v-if="procesandoId !== null" class="w-4 h-4 animate-spin" />
+            {{ ciudadanoSeleccionado?.activo !== false ? 'Sí, Bloquear' : 'Sí, Activar' }}
+          </button>
+        </div>
+
+      </div>
+    </div>
 
     <!-- PIE DE PÁGINA -->
     <footer class="py-4 text-center border-t border-slate-900 bg-gecap-darkblue text-[11px] text-slate-500 font-medium">
