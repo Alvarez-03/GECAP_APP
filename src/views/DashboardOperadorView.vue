@@ -65,8 +65,8 @@ const funcionesOperador = [
     colorBadge: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
     claseHover: 'group-hover:via-indigo-500',
     colorAnimation: 'group-hover:text-indigo-400',
-    ruta: '/policia/usuarios',
-    disponible: false,
+    ruta: '/policia/ciudadanos',
+    disponible: true,
     colorAnimation: "group-hover:via-indigo-500"
   },
   {

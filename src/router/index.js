@@ -16,6 +16,7 @@ import LoginOperadorView from '../views/LoginOperadorView.vue'
 import MapaOperadorView from '../views/MapaOperadorView.vue'
 import DashboardOperadorView from '../views/DashboardOperadorView.vue'
 import GestionOperadoresView from '../views/GestionOperadoresView.vue'
+import GestionCiudadanosView from '../views/GestionCiudadanosView.vue'
 
 const routes = [
   {
@@ -106,6 +107,12 @@ const routes = [
     path: '/policia/operadores',
     name: 'GestionOPeradores',
     component: GestionOperadoresView,
+    meta: { requiresAuth: true, requiresOperator: true }
+  },
+  {
+    path: '/policia/ciudadanos',
+    name: 'GestionCiudadanos',
+    component: GestionCiudadanosView,
     meta: { requiresAuth: true, requiresOperator: true }
   }
 ]
