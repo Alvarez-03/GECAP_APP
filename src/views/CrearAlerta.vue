@@ -30,6 +30,11 @@ const descripcionAudio = ref('')
 const grabandoVoz = ref(false)
 const datosListos = ref(false)
 
+// Estados para manejo de múltiples fotos de evidencia
+const archivosFotos = ref([])
+const previsualizacionesFotos = ref([])
+const fileInputRef = ref(null)
+
 // Coordenadas manuales o ajustadas por el usuario en el mapa
 const latManual = ref(route.query.lat ? parseFloat(route.query.lat) : null)
 const lngManual = ref(route.query.lng ? parseFloat(route.query.lng) : null)
@@ -48,13 +53,12 @@ const { iniciarReconocimientoVoz, leerTextoEnVozAlta } = setupSpeech({
   toast
 })
 
-// Obtener lat/lng final (prioriza la manual si el usuario la movió, luego GPS, luego URL)
 const obtenerLatitudActual = () => {
   if (latManual.value !== null) return latManual.value
   if (coords.value.latitude && coords.value.latitude !== Infinity && coords.value.latitude !== 0) {
     return coords.value.latitude
   }
-  return route.query.lat ? parseFloat(route.query.lat) : 4.0847 // Coordenada por defecto Tuluá
+  return route.query.lat ? parseFloat(route.query.lat) : 4.0847
 }
 
 const obtenerLongitudActual = () => {
@@ -124,7 +128,6 @@ onMounted(async () => {
   }
 })
 
-// Abrir modal de mini mapa para ajustar ubicación
 const abrirSelectorUbicacion = async () => {
   mostrarModalMapa.value = true
   await nextTick()
@@ -140,14 +143,12 @@ const abrirSelectorUbicacion = async () => {
 
     miniMarker = L.marker([currentLat, currentLng], { draggable: true }).addTo(miniMap)
 
-    // Al arrastrar el marcador manual
-    miniMarker.on('dragend', (event) => {
+    miniMarker.on('dragend', () => {
       const position = miniMarker.getLatLng()
       latManual.value = position.lat
       lngManual.value = position.lng
     })
 
-    // Al hacer clic en cualquier parte del mini mapa
     miniMap.on('click', (event) => {
       const { lat, lng } = event.latlng
       miniMarker.setLatLng([lat, lng])
@@ -199,30 +200,53 @@ const toggleGrabacionVoz = () => {
   }
 }
 
+// Funciones para manejar selección y previsualización de imágenes
 const abrirSelectorEvidencia = () => {
-  toast.info('Función de adjuntar fotos en desarrollo...', { position: 'top-center' })
+  if (fileInputRef.value) {
+    fileInputRef.value.click()
+  }
+}
+
+const handleSeleccionarFotos = (event) => {
+  const files = Array.from(event.target.files)
+  if (!files.length) return
+
+  if (archivosFotos.value.length + files.length > 4) {
+    toast.warning('Puedes adjuntar un máximo de 4 fotos por reporte.', { position: 'top-center' })
+    return
+  }
+
+  files.forEach(file => {
+    if (!file.type.startsWith('image/')) {
+      toast.error(`El archivo ${file.name} no es una imagen válida.`)
+      return
+    }
+    archivosFotos.value.push(file)
+    const previewUrl = URL.createObjectURL(file)
+    previsualizacionesFotos.value.push(previewUrl)
+  })
+
+  event.target.value = ''
+}
+
+const eliminarFoto = (index) => {
+  URL.revokeObjectURL(previsualizacionesFotos.value[index])
+  previsualizacionesFotos.value.splice(index, 1)
+  archivosFotos.value.splice(index, 1)
 }
 
 const enviarReporte = async () => {
   const latitud = obtenerLatitudActual()
   const longitud = obtenerLongitudActual()
 
-  // Definir las coordenadas por defecto que se usan cuando falla el GPS
   const LAT_DEFECTO = 4.0847
   const LNG_DEFECTO = -76.1954
 
-  // Si no hay coordenadas manuales ni GPS real, y sigue teniendo las por defecto, bloqueamos
   const usaCoordenadasPorDefecto = (latManual.value === null && (coords.value.latitude === Infinity || !coords.value.latitude)) && 
     (latitud === LAT_DEFECTO && longitud === LNG_DEFECTO)
     
-
   if (!latitud || !longitud || latitud === Infinity || usaCoordenadasPorDefecto) {
     toast.warning('Por favor define tu ubicación exacta en el mapa antes de enviar.', { position: 'top-center' })
-    abrirSelectorUbicacion()
-    return
-  }
-  if (!latitud || !longitud || latitud === Infinity) {
-    toast.warning('Por favor define tu ubicación en el mapa.', { position: 'top-center' })
     abrirSelectorUbicacion()
     return
   }
@@ -237,12 +261,13 @@ const enviarReporte = async () => {
   try {
     enviando.value = true
 
+    // Se envían los archivos de fotos junto con los datos del formulario
     const alertaCreada = await crearAlertaController.registrarAlerta({
       tipo_alerta: `${alertaSeleccionada?.codigo || ''}\n${alertaSeleccionada?.situacion || ''}`,
       descripcion: descripcionAudio.value || 'Sin descripción adicional',
       latitud,
       longitud
-    })
+    }, archivosFotos.value)
 
     toast.success('¡Reporte registrado exitosamente!', { position: 'top-center' })
 
@@ -276,10 +301,8 @@ const cancelarReporte = () => {
   <div class="h-dvh bg-slate-100 flex justify-center items-center p-0 font-sans overflow-hidden">
     <div class="w-full h-full max-w-md bg-white shadow-2xl flex flex-col justify-between relative overflow-hidden">
       
-      <!-- ENCABEZADO -->
       <HeaderCiudadano @salir="cancelarReporte" />
 
-      <!-- CUERPO PRINCIPAL -->
       <main class="flex-1 px-4 py-4 flex flex-col justify-start overflow-y-auto space-y-4">
         
         <div class="text-center">
@@ -305,7 +328,6 @@ const cancelarReporte = () => {
           />
         </div>
 
-        <!-- SECCIÓN DE DESCRIPCIÓN Y AUDIO -->
         <div class="pt-1">
           <div class="flex items-center justify-between mb-1.5">
             <h3 class="text-base font-black tracking-wider text-slate-500 uppercase">
@@ -349,6 +371,16 @@ const cancelarReporte = () => {
               ></textarea>
             </div>
 
+            <!-- Input file oculto -->
+            <input 
+              ref="fileInputRef"
+              type="file" 
+              accept="image/*" 
+              multiple 
+              class="hidden" 
+              @change="handleSeleccionarFotos"
+            />
+
             <!-- BOTÓN DE EVIDENCIA -->
             <div 
               @click="abrirSelectorEvidencia"
@@ -360,12 +392,26 @@ const cancelarReporte = () => {
                 </div>
                 <div class="flex flex-col">
                   <span class="text-base font-black tracking-wide text-white uppercase">
-                    Agregar Evidencia
+                    Agregar Evidencia {{ archivosFotos.length > 0 ? `(${archivosFotos.length})` : '' }}
                   </span>
                   <span class="text-[10px] font-medium text-white leading-tight mt-0.5">
                     Toma fotos o selecciona fotos para realizar reportes.
                   </span>
                 </div>
+              </div>
+            </div>
+
+            <!-- Previsualización de fotos -->
+            <div v-if="previsualizacionesFotos.length > 0" class="flex gap-2 overflow-x-auto py-1">
+              <div v-for="(img, idx) in previsualizacionesFotos" :key="idx" class="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-slate-300 shrink-0 shadow-sm">
+                <img :src="img" class="w-full h-full object-cover" />
+                <button 
+                  type="button" 
+                  @click.stop="eliminarFoto(idx)"
+                  class="absolute top-1 right-1 bg-slate-900/80 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-red-600 transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
             </div>
 
@@ -375,10 +421,12 @@ const cancelarReporte = () => {
         <div class="pt-2 pb-1 space-y-2">
           <button 
             @click="enviarReporte"
+            :disabled="enviando"
             class="w-full bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer uppercase tracking-wider text-base"
           >
-            <Send class="w-4 h-4 text-white" />
-            Enviar Reporte
+            <Loader2 v-if="enviando" class="w-4 h-4 animate-spin text-white" />
+            <Send v-else class="w-4 h-4 text-white" />
+            {{ enviando ? 'Enviando...' : 'Enviar Reporte' }}
           </button>
 
           <button 
@@ -391,7 +439,6 @@ const cancelarReporte = () => {
 
       </main>
 
-      <!-- BARRA INFERIOR DE ESTADO DE UBICACIÓN + BOTÓN DE CAMBIO MANUAL -->
       <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
         <div class="flex items-center gap-1.5 overflow-hidden">
           <span v-if="errorUbicacion || coords.latitude === Infinity" class="text-[10px] font-semibold text-gecap-blue flex items-center gap-1">
@@ -414,7 +461,6 @@ const cancelarReporte = () => {
         </button>
       </div>
 
-      <!-- MODAL / TARJETA FLOTANTE CON MINI MAPA PARA MOVER EL PIN -->
       <div v-if="mostrarModalMapa" class="absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col justify-end sm:justify-center p-0 sm:p-4">
         <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col h-[450px]">
           
@@ -426,7 +472,6 @@ const cancelarReporte = () => {
             <button @click="mostrarModalMapa = false" class="text-slate-400 hover:text-white font-bold text-base p-1">✕</button>
           </div>
 
-          <!-- Contenedor del Mini Mapa Leaflet -->
           <div ref="mapContainerMini" class="flex-1 w-full z-10"></div>
 
           <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">

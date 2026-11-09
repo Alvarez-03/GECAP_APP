@@ -2,7 +2,6 @@ import { tiposReportesService } from '../services/tiposReportesService'
 import { alertasService } from '../services/alertasService'
 
 export const crearAlertaController = {
-  //Obtiene todos los tipos de alertas/reportes activos
   async obtenerTodos() {
     try {
       const reportes = await tiposReportesService.obtenerTodos(true)
@@ -13,8 +12,10 @@ export const crearAlertaController = {
     }
   },
 
-  async registrarAlerta(datosFormulario) {
+  async registrarAlerta(datosFormulario, archivosFotos = []) {
     try {
+      console.log('📦 [Controller] Archivos recibidos para procesar:', archivosFotos)
+
       let documentoCiudadano = null
       let usuarioUuid = null
       let nombreCiudadano = null
@@ -31,7 +32,6 @@ export const crearAlertaController = {
         }
       }
 
-      // Definir el payload después de extraer los datos
       const payload = {
         ciudadano_documento: documentoCiudadano,
         usuario_id: usuarioUuid,
@@ -39,16 +39,17 @@ export const crearAlertaController = {
         descripcion: datosFormulario.descripcion,
         latitud: datosFormulario.latitud,
         longitud: datosFormulario.longitud,
-        nombre_ciudadano: nombreCiudadano
+        nombre_ciudadano: nombreCiudadano,
+        archivos: archivosFotos
       }
+
+      console.log('📤 [Controller] Enviando payload completo a alertasService:', payload)
 
       const respuesta = await alertasService.crearAlerta(payload)
       return respuesta
     } catch (error) {
-      console.error('Error en controlador crearAlertaController:', error)
+      console.error('❌ Error en controlador crearAlertaController:', error)
       throw error
     }
   }
-
-  
 }
