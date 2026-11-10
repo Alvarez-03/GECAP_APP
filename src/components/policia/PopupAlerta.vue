@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { 
   User, 
   Video, 
@@ -7,7 +7,11 @@ import {
   Send, 
   Minimize2, 
   ChevronDown,
-  GripHorizontal 
+  GripHorizontal,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -19,8 +23,45 @@ const props = defineProps({
 
 const emit = defineEmits(['cerrar', 'actualizarEstado', 'ingresarCodigo', 'verEvidencia', 'reportarCod'])
 
-// Estado local para el selector de estado inicializado directamente desde la base de datos
+// Estado local para el selector de estado
 const estadoSeleccionado = ref(props.alerta.estado_actual || 'PENDIENTE')
+
+// Estados para el visor modal de evidencias tipo carrusel
+const mostrarModalEvidencia = ref(false)
+const currentIndex = ref(0)
+
+// Extraer de forma segura las URLs de las fotos de la relación 'alerta_fotos'
+const evidenciasList = computed(() => {
+  if (!props.alerta || !props.alerta.alerta_fotos) return []
+  return props.alerta.alerta_fotos.map(f => f.url_foto)
+})
+
+const evidenciaActual = computed(() => {
+  if (evidenciasList.value.length === 0) return ''
+  return evidenciasList.value[currentIndex.value]
+})
+
+const abrirEvidencia = () => {
+  if (evidenciasList.value.length > 0) {
+    currentIndex.value = 0
+    mostrarModalEvidencia.value = true
+  } else {
+    // Si la propiedad viene con otro nombre o se prefiere usar el evento emitido
+    emit('verEvidencia', props.alerta)
+  }
+}
+
+const siguienteFoto = () => {
+  if (evidenciasList.value.length > 0) {
+    currentIndex.value = (currentIndex.value + 1) % evidenciasList.value.length
+  }
+}
+
+const anteriorFoto = () => {
+  if (evidenciasList.value.length > 0) {
+    currentIndex.value = (currentIndex.value - 1 + evidenciasList.value.length) % evidenciasList.value.length
+  }
+}
 
 // Lógica para hacer la ventana arrastrable (Draggable)
 const posicion = ref({ x: 0, y: 0 })
@@ -57,9 +98,10 @@ onUnmounted(() => {
 
 watch(() => props.alerta, (nuevaAlerta) => {
   if (nuevaAlerta) {
-    // Sincroniza el estado actual que viene de la BD cada vez que cambia o se selecciona otra alerta
     estadoSeleccionado.value = nuevaAlerta.estado_actual || 'PENDIENTE'
     posicion.value = { x: 0, y: 0 }
+    mostrarModalEvidencia.value = false
+    currentIndex.value = 0
   }
 }, { immediate: true })
 
@@ -125,24 +167,27 @@ const handleEnviarReporte = () => {
           </div>
         </div>
       </div>
+
       <!-- Botones de Acción Derecha -->
       <div class="grid grid-cols-2 gap-1.5">
-          <button 
-            @click="$emit('verEvidencia', alerta)"
-            class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl p-1.5 flex items-center justify-center gap-1.5 border border-slate-300 transition cursor-pointer"
-          >
-            <Video class="w-6 h-6 shrink-0 fill-slate-800" />
-            <span class="text-[12px] font-black uppercase tracking-tight leading-tight">VER EVIDENCIA</span>
-          </button>
+        <button 
+          @click="abrirEvidencia"
+          class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl p-1.5 flex items-center justify-center gap-1.5 border border-slate-300 transition cursor-pointer"
+        >
+          <Video class="w-6 h-6 shrink-0 fill-slate-800" />
+          <span class="text-[12px] font-black uppercase tracking-tight leading-tight">
+            VER EVIDENCIA {{ evidenciasList.length > 0 ? `(${evidenciasList.length})` : '' }}
+          </span>
+        </button>
 
-          <button 
-            @click="$emit('ingresarCodigo', alerta)"
-            class="flex-1 bg-red-700 hover:bg-red-800 text-white rounded-xl p-1.5 flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
-          >
-            <FileText class="w-6 h-6 shrink-0" />
-            <span class="text-[12px] font-black uppercase tracking-tight leading-tight">INGRESAR 5.03</span>
-          </button>
-        </div>
+        <button 
+          @click="$emit('ingresarCodigo', alerta)"
+          class="flex-1 bg-red-700 hover:bg-red-800 text-white rounded-xl p-1.5 flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+        >
+          <FileText class="w-6 h-6 shrink-0" />
+          <span class="text-[12px] font-black uppercase tracking-tight leading-tight">INGRESAR 5.03</span>
+        </button>
+      </div>
 
       <!-- INFORMACIÓN REPORTADA -->
       <div class="bg-slate-200/90 p-2.5 rounded-xl ">
@@ -202,5 +247,50 @@ const handleEnviarReporte = () => {
       </div>
 
     </div>
+  </div>
+
+  <!-- MODAL CARRUSEL DE EVIDENCIAS EN PANTALLA GRANDE PARA EL OPERADOR -->
+  <div v-if="mostrarModalEvidencia" class="fixed inset-0 bg-black/85 z-50 flex flex-col justify-between p-4 backdrop-blur-md">
+    
+    <!-- Barra Superior -->
+    <div class="flex items-center justify-between text-white py-2">
+      <span class="text-xs font-black tracking-widest uppercase bg-white/10 px-3 py-1 rounded-full">
+        Evidencia {{ currentIndex + 1 }} de {{ evidenciasList.length }} (RADICADO #{{ alerta.codigo_seguimiento }})
+      </span>
+      <button @click="mostrarModalEvidencia = false" class="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer">
+        <X class="w-6 h-6" />
+      </button>
+    </div>
+
+    <!-- Visor de Imagen con Botones Laterales -->
+    <div class="relative flex-1 flex items-center justify-center my-2 overflow-hidden">
+      <button v-if="evidenciasList.length > 1" @click="anteriorFoto" class="absolute left-2 z-10 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer">
+        <ChevronLeft class="w-6 h-6" />
+      </button>
+
+      <div class="w-full h-full max-h-[65vh] flex items-center justify-center p-1">
+        <img :src="evidenciaActual" alt="Evidencia de alerta" class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/10" />
+      </div>
+
+      <button v-if="evidenciasList.length > 1" @click="siguienteFoto" class="absolute right-2 z-10 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer">
+        <ChevronRight class="w-6 h-6" />
+      </button>
+    </div>
+
+    <!-- Miniaturas Inferiores para Navegación -->
+    <div v-if="evidenciasList.length > 1" class="py-2 flex gap-2 overflow-x-auto justify-center max-w-full">
+      <button 
+        v-for="(foto, idx) in evidenciasList" 
+        :key="idx"
+        @click="currentIndex = idx"
+        :class="[
+          'w-14 h-14 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer',
+          currentIndex === idx ? 'border-red-600 scale-105' : 'border-white/20 opacity-50'
+        ]"
+      >
+        <img :src="foto" class="w-full h-full object-cover" />
+      </button>
+    </div>
+
   </div>
 </template>

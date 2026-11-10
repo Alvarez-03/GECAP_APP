@@ -17,7 +17,7 @@ export const reportesService = {
           id_cuadrante,
           estado_actual,
           created_at,
-          estado_actual
+          alerta_fotos(url_foto)
         `)
         .eq('usuario_id', usuarioId)
         .order('created_at', { ascending: false })
@@ -46,7 +46,8 @@ export const reportesService = {
           id_cuadrante,
           estado_actual,
           created_at,
-          nombre_ciudadano
+          nombre_ciudadano,
+          alerta_fotos(url_foto)
         `)
         .order('created_at', { ascending: false })
 
