@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Mic, MicOff, Video, Send, Loader2, MapPin, Volume2, Navigation, Check } from 'lucide-vue-next'
+import { Mic, MicOff, Video, Send, Loader2, MapPin, Volume2, Navigation, Check, ChevronRight, ChevronLeft } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import { useGeolocation } from '@vueuse/core'
 import L from 'leaflet'
@@ -20,6 +20,9 @@ const { coords, error: errorUbicacion } = useGeolocation({
   maximumAge: 0,
   timeout: 10000
 })
+
+// Control de Pasos (Steps)
+const currentStep = ref(1)
 
 // Estados reactivos
 const cargando = ref(true)
@@ -200,6 +203,29 @@ const toggleGrabacionVoz = () => {
   }
 }
 
+// Navegación entre pasos
+const siguientePaso = () => {
+  if (currentStep.value === 1) {
+    if (!tipoReporteSeleccionado.value) {
+      toast.warning('Por favor selecciona un tipo de alerta.', { position: 'top-center' })
+      return
+    }
+    currentStep.value = 2
+  } else if (currentStep.value === 2) {
+    if (!descripcionAudio.value.trim()) {
+      toast.warning('Por favor escribe o dicta una descripción breve.', { position: 'top-center' })
+      return
+    }
+    currentStep.value = 3
+  }
+}
+
+const pasoAnterior = () => {
+  if (currentStep.value > 1) {
+    currentStep.value--
+  }
+}
+
 // Funciones para manejar selección y previsualización de imágenes
 const abrirSelectorEvidencia = () => {
   if (fileInputRef.value) {
@@ -251,17 +277,11 @@ const enviarReporte = async () => {
     return
   }
 
-  if (!tipoReporteSeleccionado.value) {
-    toast.warning('Por favor selecciona un tipo de alerta.', { position: 'top-center' })
-    return
-  }
-
   const alertaSeleccionada = listaTiposReportes.value.find(item => item.id === tipoReporteSeleccionado.value)
 
   try {
     enviando.value = true
 
-    // Se envían los archivos de fotos junto con los datos del formulario
     const alertaCreada = await crearAlertaController.registrarAlerta({
       tipo_alerta: `${alertaSeleccionada?.codigo || ''}\n${alertaSeleccionada?.situacion || ''}`,
       descripcion: descripcionAudio.value || 'Sin descripción adicional',
@@ -286,7 +306,6 @@ const enviarReporte = async () => {
     })
   } catch (error) {
     console.error('Error al guardar el reporte:', error)
-    toast.error('Ocurrió un error al registrar la alerta.')
   } finally {
     enviando.value = false
   }
@@ -303,74 +322,136 @@ const cancelarReporte = () => {
       
       <HeaderCiudadano @salir="cancelarReporte" />
 
+      <!-- BARRA DE PROGRESO DE PASOS -->
+      <div class="bg-gecap-background px-4 py-2.5 flex items-center justify-between text-gecap-darkblue border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-gecap-blue text-white flex items-center justify-center text-xs font-black">
+            {{ currentStep }}
+          </span>
+          <span class="text-xs font-black uppercase tracking-wider">
+            {{ currentStep === 1 ? 'Tipo de Alerta' : currentStep === 2 ? 'Descripción' : 'Evidencias' }}
+          </span>
+        </div>
+        <span class="text-[10px] font-bold text-gecap-darkblue">Paso {{ currentStep }} de 3</span>
+      </div>
+
       <main class="flex-1 px-4 py-4 flex flex-col justify-start overflow-y-auto space-y-4">
         
-        <div class="text-center">
-          <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 uppercase">
-            ENVIA TU REPORTE A LAS AUTORIDADES
-          </h2>
-        </div>
-
-        <div v-if="cargando" class="flex flex-col items-center justify-center py-10">
-          <Loader2 class="w-8 h-8 animate-spin text-red-600 mb-2" />
-          <p class="text-base text-slate-400 font-bold">Cargando tipos de alertas...</p>
-        </div>
-
-        <div v-else class="max-h-[240px] my-0.5 overflow-y-auto pr-1 space-y-2.5 scroll-smooth custom-scrollbar border-b-2 border-slate-200 pb-2">
-          <CardTipoAlerta 
-            v-for="item in listaTiposReportes"
-            :key="item.id"
-            :titulo="item.situacion"
-            :descripcion="item.descripcion"
-            :codigo="item.codigo"
-            :seleccionado="tipoReporteSeleccionado === item.id"
-            @seleccionar="seleccionarTipo(item.id)"
-          />
-        </div>
-
-        <div class="pt-1">
-          <div class="flex items-center justify-between mb-1.5">
-            <h3 class="text-base font-black tracking-wider text-slate-500 uppercase">
-              DESCRIPCIÓN Y AUDIO DEL REPORTE
-            </h3>
+        <!-- PASO 1: ELEGIR TIPO DE REPORTE -->
+        <div v-if="currentStep === 1" class="space-y-3">
+          <div class="text-center">
+            <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 uppercase">
+              SELECCIONA EL TIPO DE ALERTA
+            </h2>
+            <p class="text-xs text-slate-500 font-medium mt-0.5">Elige la situación que mejor describa el incidente</p>
           </div>
-          <button 
-            type="button"
-            @click="toggleGrabacionVoz"
-            :class="[
-              'flex items-center mb-2 px-2.5 py-1 rounded-md text-base font-bold transition-all shadow-sm cursor-pointer',
-              grabandoVoz 
-                ? 'bg-gecap-darkblue/70 text-white animate-pulse' 
-                : 'bg-gecap-darkblue text-white hover:bg-gecap-darkblue/70'
-            ]"
-          >
-            <Mic v-if="!grabandoVoz" class="w-4 h-4 text-white" />
-            <MicOff v-else class="w-4 h-4 text-white" />
-            {{ grabandoVoz ? ' Escuchando...' : ' Dictar por voz descripción del reporte.' }}
-          </button>
 
-          <div class="space-y-2.5 mt-2">
-            <div class="flex items-center justify-between mt-1">
-                <span class="text-[14px] text-slate-400 font-medium">Escucha tu reporte antes de enviarlo:</span>
+          <div v-if="cargando" class="flex flex-col items-center justify-center py-10">
+            <Loader2 class="w-8 h-8 animate-spin text-red-600 mb-2" />
+            <p class="text-base text-slate-400 font-bold">Cargando tipos de alertas...</p>
+          </div>
+
+          <div v-else class="max-h-[340px] overflow-y-auto pr-1 space-y-2.5 scroll-smooth custom-scrollbar pb-2">
+            <CardTipoAlerta 
+              v-for="item in listaTiposReportes"
+              :key="item.id"
+              :titulo="item.situacion"
+              :descripcion="item.descripcion"
+              :codigo="item.codigo"
+              :seleccionado="tipoReporteSeleccionado === item.id"
+              @seleccionar="seleccionarTipo(item.id)"
+            />
+          </div>
+
+          <div class="pt-2">
+            <button 
+              @click="siguientePaso"
+              class="w-full bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer uppercase tracking-wider text-base"
+            >
+              Siguiente
+              <ChevronRight class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- PASO 2: DESCRIPCIÓN Y AUDIO -->
+        <div v-if="currentStep === 2" class="space-y-4">
+          <div class="text-center">
+            <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 uppercase">
+              DESCRIPCIÓN DEL REPORTE
+            </h2>
+            <p class="text-xs text-slate-500 font-medium mt-0.5">Escribe detalles o usa el dictado por voz</p>
+          </div>
+
+          <div class="pt-1">
+            <button 
+              type="button"
+              @click="toggleGrabacionVoz"
+              :class="[
+                'flex items-center mb-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer w-full justify-center gap-2',
+                grabandoVoz 
+                  ? 'bg-gecap-darkblue/70 text-white animate-pulse' 
+                  : 'bg-gecap-darkblue text-white hover:bg-gecap-darkblue/90'
+              ]"
+            >
+              <Mic v-if="!grabandoVoz" class="w-4 h-4 text-white" />
+              <MicOff v-else class="w-4 h-4 text-white" />
+              {{ grabandoVoz ? ' Escuchando... Habla ahora' : ' Dictar por voz descripción' }}
+            </button>
+
+            <div class="space-y-2.5 mt-2">
+              <div class="flex items-center justify-between mt-1">
+                <span class="text-[12px] text-slate-400 font-medium">Escucha tu reporte antes de continuar:</span>
                 <button 
-                    type="button"
-                    @click="leerTextoEnVozAlta(descripcionAudio)"
-                    class="flex items-center gap-1 px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[12px] font-bold transition-colors cursor-pointer"
+                  type="button"
+                  @click="leerTextoEnVozAlta(descripcionAudio)"
+                  class="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[11px] font-bold transition-colors cursor-pointer"
                 >
-                <Volume2 class="w-4 h-4 text-gecap-darkblue" />
-                 Reproducir audio
+                  <Volume2 class="w-4 h-4 text-gecap-darkblue" />
+                  Reproducir audio
                 </button>
-            </div>
-            <div class="relative">
-              <textarea 
-                :value="descripcionAudio"
-                @input="handleInputTexto"
-                rows="2"
-                placeholder='Ej: "Dos sujetos sospechosos en moto negra merodeando..."'
-                class="w-full p-2.5 text-base text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-600 focus:outline-none resize-none placeholder:text-slate-400 font-medium"
-              ></textarea>
-            </div>
+              </div>
 
+              <div class="relative">
+                <textarea 
+                  :value="descripcionAudio"
+                  @input="handleInputTexto"
+                  rows="4"
+                  placeholder='Ej: "Dos sujetos sospechosos en moto negra merodeando..."'
+                  class="w-full p-3 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-600 focus:outline-none resize-none placeholder:text-slate-400 font-medium"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-4">
+            <button 
+              @click="pasoAnterior"
+              class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black py-3 rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
+            >
+              <ChevronLeft class="w-4 h-4" />
+              Atrás
+            </button>
+            <button 
+              @click="siguientePaso"
+              class="w-2/3 bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
+            >
+              Siguiente
+              <ChevronRight class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <!-- PASO 3: EVIDENCIAS Y ENVÍO -->
+        <div v-if="currentStep === 3" class="space-y-4">
+          <div class="text-center">
+            <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 uppercase">
+              AGREGAR EVIDENCIAS (FOTOS)
+            </h2>
+            <p class="text-xs text-slate-500 font-medium mt-0.5">Puedes adjuntar hasta 4 fotografías opcionales</p>
+          </div>
+
+          <div class="space-y-3">
             <!-- Input file oculto -->
             <input 
               ref="fileInputRef"
@@ -384,26 +465,26 @@ const cancelarReporte = () => {
             <!-- BOTÓN DE EVIDENCIA -->
             <div 
               @click="abrirSelectorEvidencia"
-              class="flex items-center justify-between w-full p-2.5 bg-gecap-darkblue rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all cursor-pointer select-none"
+              class="flex items-center justify-between w-full p-3 bg-gecap-darkblue rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all cursor-pointer select-none"
             >
               <div class="flex items-center gap-3.5">
                 <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner flex-shrink-0">
-                  <Video class="w-8 h-8" />
+                  <Video class="w-6 h-6" />
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-base font-black tracking-wide text-white uppercase">
-                    Agregar Evidencia {{ archivosFotos.length > 0 ? `(${archivosFotos.length})` : '' }}
+                  <span class="text-sm font-black tracking-wide text-white uppercase">
+                    Tomar o Elegir Fotos {{ archivosFotos.length > 0 ? `(${archivosFotos.length}/4)` : '' }}
                   </span>
-                  <span class="text-[10px] font-medium text-white leading-tight mt-0.5">
-                    Toma fotos o selecciona fotos para realizar reportes.
+                  <span class="text-[10px] font-medium text-white/80 leading-tight mt-0.5">
+                    Adjunta pruebas para las autoridades.
                   </span>
                 </div>
               </div>
             </div>
 
             <!-- Previsualización de fotos -->
-            <div v-if="previsualizacionesFotos.length > 0" class="flex gap-2 overflow-x-auto py-1">
-              <div v-for="(img, idx) in previsualizacionesFotos" :key="idx" class="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-slate-300 shrink-0 shadow-sm">
+            <div v-if="previsualizacionesFotos.length > 0" class="grid grid-cols-4 gap-2 pt-1">
+              <div v-for="(img, idx) in previsualizacionesFotos" :key="idx" class="relative aspect-square rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm">
                 <img :src="img" class="w-full h-full object-cover" />
                 <button 
                   type="button" 
@@ -414,31 +495,31 @@ const cancelarReporte = () => {
                 </button>
               </div>
             </div>
-
           </div>
-        </div>
 
-        <div class="pt-2 pb-1 space-y-2">
-          <button 
-            @click="enviarReporte"
-            :disabled="enviando"
-            class="w-full bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer uppercase tracking-wider text-base"
-          >
-            <Loader2 v-if="enviando" class="w-4 h-4 animate-spin text-white" />
-            <Send v-else class="w-4 h-4 text-white" />
-            {{ enviando ? 'Enviando...' : 'Enviar Reporte' }}
-          </button>
-
-          <button 
-            @click="cancelarReporte"
-            class="w-full text-center text-gecap-blue hover:text-gecap-blue font-black text-base uppercase tracking-wider transition-colors cursor-pointer py-0.5"
-          >
-            Cancelar Reporte
-          </button>
+          <div class="flex gap-2 pt-4">
+            <button 
+              @click="pasoAnterior"
+              class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black py-3 rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
+            >
+              <ChevronLeft class="w-4 h-4" />
+              Atrás
+            </button>
+            <button 
+              @click="enviarReporte"
+              :disabled="enviando"
+              class="w-2/3 bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
+            >
+              <Loader2 v-if="enviando" class="w-4 h-4 animate-spin text-white" />
+              <Send v-else class="w-4 h-4 text-white" />
+              {{ enviando ? 'Enviando...' : 'Enviar Reporte' }}
+            </button>
+          </div>
         </div>
 
       </main>
 
+      <!-- Pie con GPS y Selector de Ubicación -->
       <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
         <div class="flex items-center gap-1.5 overflow-hidden">
           <span v-if="errorUbicacion || coords.latitude === Infinity" class="text-[10px] font-semibold text-gecap-blue flex items-center gap-1">
@@ -461,6 +542,7 @@ const cancelarReporte = () => {
         </button>
       </div>
 
+      <!-- Modal Mapa -->
       <div v-if="mostrarModalMapa" class="absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col justify-end sm:justify-center p-0 sm:p-4">
         <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col h-[450px]">
           
