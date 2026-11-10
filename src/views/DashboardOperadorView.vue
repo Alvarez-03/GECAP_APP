@@ -33,8 +33,8 @@ const funcionesOperador = [
     descripcion: 'Información detallada de alertas de la ciudad de Tuluá.',
     icono: ShieldAlert,
     colorBadge: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    ruta: '/policia/AlertasDetalle',
-    disponible: false,
+    ruta: '/policia/AlertasReporte',
+    disponible: true,
     colorAnimation: "group-hover:via-amber-500"
   },
   {
