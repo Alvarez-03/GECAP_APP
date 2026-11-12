@@ -18,6 +18,7 @@ import DashboardOperadorView from '../views/DashboardOperadorView.vue'
 import GestionOperadoresView from '../views/GestionOperadoresView.vue'
 import GestionCiudadanosView from '../views/GestionCiudadanosView.vue'
 import GestionAlertasOperador from '../views/GestionAlertasOperador.vue'
+import GestionCuadrantesView from '../views/GestionCuadrantesView.vue'
 
 const routes = [
   {
@@ -120,6 +121,12 @@ const routes = [
     path: '/policia/AlertasReporte',
     name: 'AlertasReporte',
     component: GestionAlertasOperador,
+    meta: { requiresAuth: true, requiresOperator: true }
+  },
+  {
+    path: '/policia/cuadrantes',
+    name: 'GestionCuadrantes',
+    component: GestionCuadrantesView,
     meta: { requiresAuth: true, requiresOperator: true }
   }
 ]

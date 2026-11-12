@@ -44,7 +44,7 @@ const funcionesOperador = [
     icono: Radio,
     colorBadge: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
     ruta: '/policia/cuadrantes',
-    disponible: false,
+    disponible: true,
     colorAnimation: "group-hover:via-blue-500"
   },
   {
