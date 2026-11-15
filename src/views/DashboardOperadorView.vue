@@ -54,7 +54,7 @@ const funcionesOperador = [
     icono: BarChart3,
     colorBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
     ruta: '/policia/dashboard-bi',
-    disponible: false,
+    disponible: true,
     colorAnimation: "group-hover:via-emerald-500"
   },
   {

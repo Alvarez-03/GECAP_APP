@@ -19,6 +19,7 @@ import GestionOperadoresView from '../views/GestionOperadoresView.vue'
 import GestionCiudadanosView from '../views/GestionCiudadanosView.vue'
 import GestionAlertasOperador from '../views/GestionAlertasOperador.vue'
 import GestionCuadrantesView from '../views/GestionCuadrantesView.vue'
+import MetricsView from '../views/MetricsView.vue'
 
 const routes = [
   {
@@ -127,6 +128,12 @@ const routes = [
     path: '/policia/cuadrantes',
     name: 'GestionCuadrantes',
     component: GestionCuadrantesView,
+    meta: { requiresAuth: true, requiresOperator: true }
+  },
+  {
+    path: '/policia/dashboard-bi',
+    name: 'DashboardBi',
+    component: MetricsView,
     meta: { requiresAuth: true, requiresOperator: true }
   }
 ]
