@@ -35,6 +35,12 @@ const handleLogin = async () => {
     return
   }
 
+  if (form.email.trim().toLowerCase().endsWith('@policia.gov.co')) {
+    errorMessage.value = 'El acceso a este portal ciudadano no está permitido para correos institucionales (@policia.gov.co).'
+    toast.error(errorMessage.value, { position: 'top-center' })
+    return
+  }
+
   isSubmitting.value = true
 
   try {

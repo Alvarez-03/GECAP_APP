@@ -57,5 +57,22 @@ export const reportesService = {
       console.error('Error al obtener alertas globales:', error.message)
       return { success: false, alertas: [] }
     }
+  },
+
+  async actualizarEstadoAlerta(alertaId, nuevoEstado) {
+    try {
+      const { data, error } = await supabase
+        .from('alertas')
+        .update({ estado_actual: nuevoEstado })
+        .eq('id', alertaId)
+        .select()
+
+      if (error) throw error
+      console.log("increible")
+      return { success: true, data }
+    } catch (error) {
+      console.error('Error al actualizar el estado de la alerta:', error.message)
+      return { success: false, error: error.message }
+    }
   }
 }

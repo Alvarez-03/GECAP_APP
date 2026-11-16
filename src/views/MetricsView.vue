@@ -5,20 +5,19 @@ import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { marked } from 'marked'
 import { Doughnut, Bar, Line, Pie } from 'vue-chartjs'
-import {Chart as ChartJS,Title,Tooltip,Legend,ArcElement,BarElement,CategoryScale,LinearScale,PointElement, LineElement} from 'chart.js'
-import { ArrowLeft, BarChart3, ShieldAlert, Clock,  MapPin, RefreshCw, Loader2, PieChart, Activity, TrendingUp,  Filter,  X,Brain,ChevronLeft} from 'lucide-vue-next'
+import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale, PointElement, LineElement, Filler } from 'chart.js'
+import { ArrowLeft, BarChart3, ShieldAlert, Clock, MapPin, RefreshCw, Loader2, PieChart, Activity, TrendingUp, Filter, X, Brain, ChevronLeft, Building } from 'lucide-vue-next'
 
 import { reportesService } from '../services/reportesService'
 import { cuadrantesService } from '../services/cuadrantesService'
 import { useAiReportStore } from '../stores/aiReportStore'
 import { toast } from 'vue3-toastify'
 
-// Importar subcomponentes modulares
 import MetricsFiltersSidebar from '../components/policia/MetricsFiltersSidebar.vue'
 import MetricsKpiCards from '../components/policia/MetricsKpiCards.vue'
 import MetricsAiPanel from '../components/policia/MetricsAiPanel.vue'
 
-ChartJS.register(Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale, PointElement, LineElement)
+ChartJS.register(Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale, PointElement, LineElement, Filler)
 
 const router = useRouter()
 const route = useRoute()
@@ -31,8 +30,13 @@ const actualizandoFiltro = ref(false)
 const panelIaColapsado = ref(false)
 const sidebarFiltrosColapsado = ref(false)
 
+// Estados de filtros sincronizados con URL
 const filtroBusqueda = ref(route.query.busqueda || '')
 const rangoTemporal = ref(route.query.rango || 'mes')
+const fechaInicio = ref(route.query.desde || '')
+const fechaFin = ref(route.query.hasta || '')
+const filtroEstacion = ref(route.query.estacion || 'TODOS')
+const filtroCuadrante = ref(route.query.cuadrante || 'TODOS')
 const filtroTipologia = ref(route.query.tipologia || 'TODOS')
 const filtroEstado = ref(route.query.estado || 'TODOS')
 
@@ -67,13 +71,33 @@ const cargarDatosMetricas = async (esActualizacion = false) => {
 
 onMounted(() => { cargarDatosMetricas() })
 
+// Si se selecciona un botón rápido (Hoy/Semana/Mes), limpiar fechas personalizadas
+const actualizarRangoRapido = (nuevoRango) => {
+  fechaInicio.value = ''
+  fechaFin.value = ''
+  rangoTemporal.value = nuevoRango
+}
+
+// Filtrar cuadrantes mostrados en el select si ya se eligió una estación específica
+const cuadrantesFiltradosPorEstacion = computed(() => {
+  if (filtroEstacion.value === 'TODOS') return cuadrantesRaw.value
+  return cuadrantesRaw.value.filter(c => {
+    const baseId = c.base_policial_id || c.id_estacion || c.id_base
+    return !baseId || String(baseId) === String(filtroEstacion.value)
+  })
+})
+
 let timeoutNotificacion = null
-watch([filtroBusqueda, rangoTemporal, filtroTipologia, filtroEstado], () => {
+watch([filtroBusqueda, rangoTemporal, fechaInicio, fechaFin, filtroEstacion, filtroCuadrante, filtroTipologia, filtroEstado], () => {
   if (cargandoDatos.value) return
 
   const queryParams = {}
   if (filtroBusqueda.value.trim()) queryParams.busqueda = filtroBusqueda.value.trim()
-  if (rangoTemporal.value !== 'mes') queryParams.rango = rangoTemporal.value
+  if (rangoTemporal.value !== 'mes' && !fechaInicio.value && !fechaFin.value) queryParams.rango = rangoTemporal.value
+  if (fechaInicio.value) queryParams.desde = fechaInicio.value
+  if (fechaFin.value) queryParams.hasta = fechaFin.value
+  if (filtroEstacion.value !== 'TODOS') queryParams.estacion = filtroEstacion.value
+  if (filtroCuadrante.value !== 'TODOS') queryParams.cuadrante = filtroCuadrante.value
   if (filtroTipologia.value !== 'TODOS') queryParams.tipologia = filtroTipologia.value
   if (filtroEstado.value !== 'TODOS') queryParams.estado = filtroEstado.value
 
@@ -89,11 +113,24 @@ watch([filtroBusqueda, rangoTemporal, filtroTipologia, filtroEstado], () => {
 
 const tipologiasDisponibles = computed(() => [...new Set(alertasRaw.value.map(a => a.tipo_alerta).filter(Boolean))].sort())
 
-const hayFiltrosActivos = computed(() => filtroBusqueda.value.trim() !== '' || rangoTemporal.value !== 'mes' || filtroTipologia.value !== 'TODOS' || filtroEstado.value !== 'TODOS')
+const hayFiltrosActivos = computed(() =>
+  filtroBusqueda.value.trim() !== '' ||
+  rangoTemporal.value !== 'mes' ||
+  fechaInicio.value !== '' ||
+  fechaFin.value !== '' ||
+  filtroEstacion.value !== 'TODOS' ||
+  filtroCuadrante.value !== 'TODOS' ||
+  filtroTipologia.value !== 'TODOS' ||
+  filtroEstado.value !== 'TODOS'
+)
 
 const limpiarFiltros = () => {
   filtroBusqueda.value = ''
   rangoTemporal.value = 'mes'
+  fechaInicio.value = ''
+  fechaFin.value = ''
+  filtroEstacion.value = 'TODOS'
+  filtroCuadrante.value = 'TODOS'
   filtroTipologia.value = 'TODOS'
   filtroEstado.value = 'TODOS'
   router.replace({ query: {} })
@@ -104,21 +141,49 @@ const alertasFiltradas = computed(() => {
   if (!alertasRaw.value.length) return []
   const ahora = new Date()
   const textoQuery = filtroBusqueda.value.trim().toLowerCase()
+  const usaFechasPersonalizadas = Boolean(fechaInicio.value || fechaFin.value)
 
   return alertasRaw.value.filter(alerta => {
     const fechaAlertaStr = alerta.created_at || alerta.fecha
     if (fechaAlertaStr) {
       const fechaAlerta = new Date(fechaAlertaStr)
       if (!isNaN(fechaAlerta.getTime())) {
-        if (rangoTemporal.value === 'hoy' && (fechaAlerta.getDate() !== ahora.getDate() || fechaAlerta.getMonth() !== ahora.getMonth() || fechaAlerta.getFullYear() !== ahora.getFullYear())) return false
-        if (rangoTemporal.value === 'semana') {
-          const hace7Dias = new Date()
-          hace7Dias.setDate(ahora.getDate() - 7)
-          if (fechaAlerta < hace7Dias) return false
+        if (usaFechasPersonalizadas) {
+          if (fechaInicio.value) {
+            const inicio = new Date(`${fechaInicio.value}T00:00:00`)
+            if (fechaAlerta < inicio) return false
+          }
+          if (fechaFin.value) {
+            const fin = new Date(`${fechaFin.value}T23:59:59.999`)
+            if (fechaAlerta > fin) return false
+          }
+        } else {
+          if (rangoTemporal.value === 'hoy' && (fechaAlerta.getDate() !== ahora.getDate() || fechaAlerta.getMonth() !== ahora.getMonth() || fechaAlerta.getFullYear() !== ahora.getFullYear())) return false
+          if (rangoTemporal.value === 'semana') {
+            const hace7Dias = new Date()
+            hace7Dias.setDate(ahora.getDate() - 7)
+            if (fechaAlerta < hace7Dias) return false
+          }
+          if (rangoTemporal.value === 'mes' && (fechaAlerta.getMonth() !== ahora.getMonth() || fechaAlerta.getFullYear() !== ahora.getFullYear())) return false
         }
-        if (rangoTemporal.value === 'mes' && (fechaAlerta.getMonth() !== ahora.getMonth() || fechaAlerta.getFullYear() !== ahora.getFullYear())) return false
       }
     }
+
+    // Filtro por Estación / Base Policial
+    if (filtroEstacion.value !== 'TODOS') {
+      const idRelacion = String(alerta.id_cuadrante || alerta.base_policial_id || '')
+      const cuadAsociado = cuadrantesRaw.value.find(c => String(c.id) === idRelacion)
+      const estacionDeCuad = cuadAsociado ? String(cuadAsociado.base_policial_id || cuadAsociado.id_estacion || '') : ''
+      if (idRelacion !== String(filtroEstacion.value) && estacionDeCuad !== String(filtroEstacion.value)) {
+        return false
+      }
+    }
+
+    // Filtro por Cuadrante
+    if (filtroCuadrante.value !== 'TODOS') {
+      if (String(alerta.id_cuadrante || '') !== String(filtroCuadrante.value)) return false
+    }
+
     if (filtroTipologia.value !== 'TODOS' && (alerta.tipo_alerta || '').toUpperCase() !== filtroTipologia.value.toUpperCase()) return false
     if (filtroEstado.value !== 'TODOS' && (alerta.estado_actual || '').toUpperCase() !== filtroEstado.value.toUpperCase()) return false
     if (textoQuery && !((alerta.tipo_alerta || '').toLowerCase().includes(textoQuery) || (alerta.estado_actual || '').toLowerCase().includes(textoQuery) || String(alerta.id || '').toLowerCase().includes(textoQuery))) return false
@@ -144,32 +209,99 @@ const axisOptions = { responsive: true, maintainAspectRatio: false, plugins: { l
 const doughnutData = computed(() => ({ labels: tiposAlertaStats.value.map(i => i.tipo), datasets: [{ data: tiposAlertaStats.value.map(i => i.cantidad), backgroundColor: ['#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#f43f5e', '#ec4899', '#84cc16'], borderWidth: 2, borderColor: '#ffffff' }] }))
 const pieData = computed(() => ({ labels: tiposAlertaStats.value.map(i => i.tipo), datasets: [{ data: tiposAlertaStats.value.map(i => i.cantidad), backgroundColor: ['#0284c7', '#06b6d4', '#14b8a6', '#f43f5e', '#8b5cf6', '#eab308', '#6366f1', '#d946ef', '#10b981'], borderWidth: 2, borderColor: '#ffffff' }] }))
 
+// 1. Puntos Críticos por Cuadrante
 const hotspotsData = computed(() => {
   const conteo = {}
-  alertasFiltradas.value.forEach(a => { if (a.cuadrante_id) conteo[a.cuadrante_id] = (conteo[a.cuadrante_id] || 0) + 1 })
-  return { labels: cuadrantesRaw.value.map(c => c.nombre || `Cuad. #${c.numero_zona}`), datasets: [{ label: 'Incidentes', data: cuadrantesRaw.value.map(c => conteo[c.id] || 0), backgroundColor: '#dc2626', borderRadius: 6 }] }
+  alertasFiltradas.value.forEach(a => { 
+    if (a.id_cuadrante) {
+      conteo[a.id_cuadrante] = (conteo[a.id_cuadrante] || 0) + 1 
+    }
+  })
+  return { 
+    labels: cuadrantesRaw.value.map(c => c.nombre || `Cuad. #${c.numero_zona}`), 
+    datasets: [{ 
+      label: 'Incidentes', 
+      data: cuadrantesRaw.value.map(c => conteo[c.id] || 0), 
+      backgroundColor: '#dc2626', 
+      borderRadius: 6 
+    }] 
+  }
 })
 
+// 2. Carga por Base Policial / CAI (Relación directa)
 const horizontalHotspotsData = computed(() => {
   const conteo = {}
-  basesRaw.value.forEach(b => { conteo[b.id] = { nombre: b.nombre, total: 0 } })
-  alertasFiltradas.value.forEach(a => {
-    const cuad = cuadrantesRaw.value.find(c => c.id === a.cuadrante_id)
-    if (cuad && conteo[cuad.base_policial_id]) conteo[cuad.base_policial_id].total += 1
+  basesRaw.value.forEach(b => { 
+    conteo[String(b.id)] = { nombre: b.nombre, total: 0 } 
   })
-  return { labels: Object.values(conteo).map(b => b.nombre), datasets: [{ label: 'Volumen Zonal', data: Object.values(conteo).map(b => b.total), backgroundColor: '#0284c7', borderRadius: 6 }] }
+
+  alertasFiltradas.value.forEach(a => {
+    const baseId = String(a.id_cuadrante)
+    if (baseId && conteo[baseId]) {
+      conteo[baseId].total += 1
+    }
+  })
+
+  return { 
+    labels: Object.values(conteo).map(b => b.nombre), 
+    datasets: [{ 
+      label: 'Volumen Zonal', 
+      data: Object.values(conteo).map(b => b.total), 
+      backgroundColor: '#0284c7', 
+      borderRadius: 6 
+    }] 
+  }
+})
+
+// 3. Nueva Gráfica: Cantidad de Reportes por Cada Hora del Día (00:00 - 23:00)
+const hourlyDistributionData = computed(() => {
+  const horas = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
+  const conteoPorHora = new Array(24).fill(0)
+
+  alertasFiltradas.value.forEach(a => {
+    const fechaStr = a.created_at || a.fecha
+    if (fechaStr) {
+      const fecha = new Date(fechaStr)
+      if (!isNaN(fecha.getTime())) {
+        const hora = fecha.getHours()
+        conteoPorHora[hora] += 1
+      }
+    }
+  })
+
+  return {
+    labels: horas,
+    datasets: [{
+      label: 'Reportes por Hora',
+      data: conteoPorHora,
+      backgroundColor: '#7c3aed',
+      borderRadius: 5
+    }]
+  }
 })
 
 const timelineLineData = computed(() => ({ labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'], datasets: [{ label: 'Incidentes Reportados', data: [4, 6, 5, 8, 12, 15, 9], borderColor: '#d97706', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.3 }] }))
-const responseTimesBarData = computed(() => ({ labels: ['Riñas', 'Hurto', 'Ruido', 'Emergencia Vial', 'Otros'], datasets: [{ label: 'Minutos Promedio', data: [6.2, 4.8, 9.5, 7.1, 5.5], backgroundColor: '#059669', borderRadius: 6 }] }))
 const statusBarsData = computed(() => {
   const enProceso = Math.max(0, totalAlertas.value - alertasPendientes.value - alertasFinalizadas.value)
   return { labels: ['Pendientes', 'En Proceso', 'Finalizados'], datasets: [{ label: 'Casos', data: [alertasPendientes.value, enProceso, alertasFinalizadas.value], backgroundColor: ['#d97706', '#2563eb', '#059669'], borderRadius: 6 }] }
 })
 
+const nombreEstacionSeleccionada = computed(() => {
+  if (filtroEstacion.value === 'TODOS') return 'Todas'
+  return basesRaw.value.find(b => String(b.id) === String(filtroEstacion.value))?.nombre || filtroEstacion.value
+})
+
+const nombreCuadranteSeleccionado = computed(() => {
+  if (filtroCuadrante.value === 'TODOS') return 'Todos'
+  const c = cuadrantesRaw.value.find(c => String(c.id) === String(filtroCuadrante.value))
+  return c ? (c.nombre || `Cuadrante #${c.numero_zona}`) : filtroCuadrante.value
+})
+
 const objetoMetricasParaIA = computed(() => ({
   municipio: "Tuluá, Valle del Cauca",
-  rango_temporal: rangoTemporal.value,
+  rango_temporal: (fechaInicio.value || fechaFin.value) ? `${fechaInicio.value || 'Inicio'} a ${fechaFin.value || 'Actual'}` : rangoTemporal.value,
+  filtro_estacion: nombreEstacionSeleccionada.value,
+  filtro_cuadrante: nombreCuadranteSeleccionado.value,
   filtro_tipologia: filtroTipologia.value,
   filtro_estado: filtroEstado.value,
   total_incidentes_filtrados: totalAlertas.value,
@@ -180,6 +312,7 @@ const objetoMetricasParaIA = computed(() => ({
   total_cuadrantes_operativos: cuadrantesRaw.value.length,
   reportes_con_evidencia_multimedia: alertasFiltradas.value.filter(a => a.alerta_fotos && a.alerta_fotos.length > 0).length,
   desglose_por_tipo_emergencia: tiposAlertaStats.value,
+  distribucion_horaria: hourlyDistributionData.value.labels.map((h, idx) => ({ hora: h, reportes: hourlyDistributionData.value.datasets[0].data[idx] })).filter(x => x.reportes > 0),
   estado_sistema: "Operativo en Tiempo Real con Supabase y GECAP"
 }))
 
@@ -224,9 +357,16 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
       <MetricsFiltersSidebar 
         v-model:colapsado="sidebarFiltrosColapsado"
         v-model:filtroBusqueda="filtroBusqueda"
-        v-model:rangoTemporal="rangoTemporal"
+        :rangoTemporal="rangoTemporal"
+        @update:rangoTemporal="actualizarRangoRapido"
+        v-model:fechaInicio="fechaInicio"
+        v-model:fechaFin="fechaFin"
+        v-model:filtroEstacion="filtroEstacion"
+        v-model:filtroCuadrante="filtroCuadrante"
         v-model:filtroTipologia="filtroTipologia"
         v-model:filtroEstado="filtroEstado"
+        :basesDisponibles="basesRaw"
+        :cuadrantesDisponibles="cuadrantesFiltradosPorEstacion"
         :tipologiasDisponibles="tipologiasDisponibles"
         :hayFiltrosActivos="hayFiltrosActivos"
         :totalAlertas="totalAlertas"
@@ -247,9 +387,24 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
             <button @click="filtroBusqueda = ''" class="hover:text-red-600"><X class="w-3.5 h-3.5" /></button>
           </div>
 
-          <div v-if="rangoTemporal !== 'mes'" class="bg-slate-100 text-slate-800 text-xs px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5 font-medium">
+          <div v-if="rangoTemporal !== 'mes' && !fechaInicio && !fechaFin" class="bg-slate-100 text-slate-800 text-xs px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5 font-medium">
             <span>Rango: {{ rangoTemporal.toUpperCase() }}</span>
             <button @click="rangoTemporal = 'mes'" class="hover:text-red-600"><X class="w-3.5 h-3.5" /></button>
+          </div>
+
+          <div v-if="fechaInicio || fechaFin" class="bg-slate-100 text-slate-800 text-xs px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5 font-medium">
+            <span>Fechas: {{ fechaInicio || '...' }} a {{ fechaFin || '...' }}</span>
+            <button @click="fechaInicio = ''; fechaFin = ''" class="hover:text-red-600"><X class="w-3.5 h-3.5" /></button>
+          </div>
+
+          <div v-if="filtroEstacion !== 'TODOS'" class="bg-slate-100 text-slate-800 text-xs px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5 font-medium">
+            <span>Base: {{ nombreEstacionSeleccionada }}</span>
+            <button @click="filtroEstacion = 'TODOS'" class="hover:text-red-600"><X class="w-3.5 h-3.5" /></button>
+          </div>
+
+          <div v-if="filtroCuadrante !== 'TODOS'" class="bg-slate-100 text-slate-800 text-xs px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5 font-medium">
+            <span>Cuadrante: {{ nombreCuadranteSeleccionado }}</span>
+            <button @click="filtroCuadrante = 'TODOS'" class="hover:text-red-600"><X class="w-3.5 h-3.5" /></button>
           </div>
 
           <div v-if="filtroTipologia !== 'TODOS'" class="bg-slate-100 text-slate-800 text-xs px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5 font-medium">
@@ -274,7 +429,7 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
         </div>
 
         <template v-else>
-          <!-- TARJETAS DE KPIs (MODULARIZADO) -->
+          <!-- TARJETAS DE KPIs -->
           <MetricsKpiCards 
             :totalAlertas="totalAlertas"
             :alertasPendientes="alertasPendientes"
@@ -315,7 +470,21 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
               </div>
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <!-- NUEVA GRÁFICA: REPORTES POR HORA DEL DÍA -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between md:col-span-3">
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <Clock class="w-4 h-4 text-violet-600" /> Distribución Horaria de Reportes (24h)
+                  </h3>
+                  <span class="text-[11px] text-violet-700 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full font-semibold">Horas Pico</span>
+                </div>
+                <p class="text-xs text-slate-500 mb-4">Cantidad de incidentes registrados según la hora del día (00:00 a 23:00).</p>
+              </div>
+              <div class="relative h-64 w-full"><Bar :data="hourlyDistributionData" :options="axisOptions" /></div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between md:col-span-3">
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -328,7 +497,7 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
               <div class="relative h-60 w-full"><Bar :data="hotspotsData" :options="axisOptions" /></div>
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between md:col-span-3">
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -341,7 +510,7 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
               <div class="relative h-60 w-full"><Bar :data="horizontalHotspotsData" :options="axisOptions" /></div>
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between md:col-span-3">
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -354,20 +523,7 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
               <div class="relative h-60 w-full"><Line :data="timelineLineData" :options="axisOptions" /></div>
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <Clock class="w-4 h-4 text-emerald-600" /> Tiempos de Respuesta
-                  </h3>
-                  <span class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-semibold">Minutos</span>
-                </div>
-                <p class="text-xs text-slate-500 mb-4">Promedio en minutos que tardan las patrullas en atender emergencias.</p>
-              </div>
-              <div class="relative h-60 w-full"><Bar :data="responseTimesBarData" :options="axisOptions" /></div>
-            </div>
-
-            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between md:col-span-1">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between md:col-span-3">
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -385,7 +541,7 @@ const reporteHtmlFormateado = computed(() => generatedReport.value ? marked(gene
 
       </main>
 
-      <!-- PANEL LATERAL DE IA (MODULARIZADO) -->
+      <!-- PANEL LATERAL DE IA -->
       <MetricsAiPanel 
         v-model:colapsado="panelIaColapsado"
         :isLoading="isLoading"

@@ -67,7 +67,15 @@ const emit = defineEmits(['update:colapsado', 'limpiar', 'generar'])
       <div v-else-if="!generatedReport" class="h-full flex flex-col items-center justify-center text-center px-4 py-24">
         <FileText class="w-12 h-12 text-slate-300 mb-3" />
         <h3 class="text-sm font-bold text-slate-700">Listo para generar diagnóstico</h3>
-        <p class="text-xs text-slate-500 mt-1">Haz clic en <strong class="text-slate-700">"Generar"</strong> para resumir la carga operativa de Tuluá en tiempo real.</p>
+        <p class="text-xs text-slate-500 mt-1">Recuerda esto es un diagnóstico generado con IA, puede cometer <strong class="text-slate-700">errores</strong>, esto es una ayuda para entender los resultados de la policia nacional de Colombia en la App GECAP.</p>
+        <button 
+          @click="emit('generar')"
+          :disabled="isLoading || cargandoDatos"
+          class="bg-red-600 hover:bg-red-700 disabled:opacity-50 mt-2 text-white px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow transition cursor-pointer"
+        >
+          <Brain class="w-4 h-4 text-white" />
+          {{ isLoading ? 'Analizando...' : 'Generar' }}
+        </button>
       </div>
 
       <div 

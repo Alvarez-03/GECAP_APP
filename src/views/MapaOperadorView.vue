@@ -214,9 +214,17 @@ const centrarEnElemento = (item) => {
   }
 }
 
+// Función ejecutada al recibir el evento del popup
 const handleActualizarEstado = async ({ id, nuevoEstado }) => {
-  console.log('Actualizando estado de alerta:', id, nuevoEstado)
-  alertaActiva.value = null
+  // Llamada limpia al servicio
+  const resultado = await reportesService.actualizarEstadoAlerta(id, nuevoEstado)
+  
+  if (resultado.success) {
+    toast.success(`Estado actualizado a: ${nuevoEstado}`)
+    await cargarDatos() // Recarga las alertas del mapa desde Supabase
+  } else {
+    toast.error('No se pudo actualizar el estado en la base de datos.')
+  }
 }
 
 onMounted(async () => {

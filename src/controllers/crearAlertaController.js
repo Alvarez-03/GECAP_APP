@@ -20,7 +20,7 @@ export const crearAlertaController = {
       let usuarioUuid = null
       let nombreCiudadano = null
 
-      const datosCiudadanoStorage = localStorage.getItem('ciudadano_gecap')
+      const datosCiudadanoStorage = localStorage.getItem('usuario_gecap')
       if (datosCiudadanoStorage) {
         try {
           const ciudadanoObj = JSON.parse(datosCiudadanoStorage)

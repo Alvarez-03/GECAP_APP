@@ -4,6 +4,7 @@ import { toast } from 'vue3-toastify'
 export const alertasService = {
   async crearAlerta(payload) {
     const codigoSeguimiento = 'CAD-' + Math.floor(100 + Math.random() * 900)
+    const UUID_CUADRANTE_FIJO = 'cc6c473b-9f0f-4279-8faa-c09a594cdfb2'
 
     // 1. Crear la alerta principal mediante RPC
     const { data, error } = await supabase.rpc('crear_alerta_segura', {
@@ -43,7 +44,17 @@ export const alertasService = {
 
     const alertaId = alertaEncontrada.id
 
-    // 3. Subir archivos al Storage y relacionarlos en 'alerta_fotos'
+    // 3. Asignar de inmediato el UUID fijo del cuadrante a la alerta creada
+    const { error: errorCuadrante } = await supabase
+      .from('alertas')
+      .update({ id_cuadrante: UUID_CUADRANTE_FIJO })
+      .eq('id', alertaId)
+
+    if (errorCuadrante) {
+      console.error('Error al asignar el id_cuadrante:', errorCuadrante.message)
+    }
+
+    // 4. Subir archivos al Storage y relacionarlos en 'alerta_fotos'
     if (payload.archivos && payload.archivos.length > 0 && alertaId) {
       for (const archivo of payload.archivos) {
         const fileName = `${alertaId}/${Date.now()}_${archivo.name.replace(/\s+/g, '_')}`
