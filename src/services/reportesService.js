@@ -1,0 +1,112 @@
+import { supabase } from './supabase'
+
+export const reportesService = {
+  async obtenerHistorialReportes(usuarioId) {
+    try {
+      const { data, error } = await supabase
+        .from('alertas')
+        .select(`
+          id,
+          codigo_seguimiento,
+          ciudadano_documento,
+          usuario_id,
+          tipo_alerta,
+          descripcion,
+          latitud,
+          longitud,
+          id_cuadrante,
+          estado_actual,
+          created_at,
+          alerta_fotos(url_foto)
+        `)
+        .eq('usuario_id', usuarioId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return { success: true, reportes: data || [] }
+    } catch (error) {
+      console.error('Error al obtener historial:', error.message)
+      throw new Error('No se pudo cargar el historial de reportes.')
+    }
+  },
+
+  async obtenerTodasLasAlertas() {
+    try {
+      const { data, error } = await supabase
+        .from('alertas')
+        .select(`
+          id,
+          codigo_seguimiento,
+          ciudadano_documento,
+          usuario_id,
+          tipo_alerta,
+          descripcion,
+          latitud,
+          longitud,
+          id_cuadrante,
+          estado_actual,
+          created_at,
+          nombre_ciudadano,
+          alerta_fotos(url_foto)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return { success: true, alertas: data || [] }
+    } catch (error) {
+      console.error('Error al obtener alertas globales:', error.message)
+      return { success: false, alertas: [] }
+    }
+  },
+
+  async obtenerAlertasPorOperador(idCuadrante, idEstacion) {
+    try {
+      const ids = [idCuadrante, idEstacion].filter(Boolean)
+      if (ids.length === 0) {
+        return { success: true, alertas: [] }
+      }
+
+      const { data, error } = await supabase
+        .from('alertas')
+        .select(`
+          id,
+          codigo_seguimiento,
+          ciudadano_documento,
+          usuario_id,
+          tipo_alerta,
+          descripcion,
+          latitud,
+          longitud,
+          id_cuadrante,
+          estado_actual,
+          created_at,
+          nombre_ciudadano,
+          alerta_fotos(url_foto)
+        `)
+        .in('id_cuadrante', ids)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return { success: true, alertas: data || [] }
+    } catch (error) {
+      console.error('Error al obtener alertas del operador:', error.message)
+      return { success: false, alertas: [] }
+    }
+  },
+
+  async actualizarEstadoAlerta(alertaId, nuevoEstado) {
+    try {
+      const { data, error } = await supabase
+        .from('alertas')
+        .update({ estado_actual: nuevoEstado })
+        .eq('id', alertaId)
+        .select()
+
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      console.error('Error al actualizar el estado de la alerta:', error.message)
+      return { success: false, error: error.message }
+    }
+  }
+}

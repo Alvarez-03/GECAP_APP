@@ -1,0 +1,55 @@
+import { tiposReportesService } from '../services/tiposReportesService'
+import { alertasService } from '../services/alertasService'
+
+export const crearAlertaController = {
+  async obtenerTodos() {
+    try {
+      const reportes = await tiposReportesService.obtenerTodos(true)
+      return reportes
+    } catch (error) {
+      console.error('Error en crearAlertaController.obtenerTodos:', error.message)
+      throw error
+    }
+  },
+
+  async registrarAlerta(datosFormulario, archivosFotos = []) {
+    try {
+      console.log('📦 [Controller] Archivos recibidos para procesar:', archivosFotos)
+
+      let documentoCiudadano = null
+      let usuarioUuid = null
+      let nombreCiudadano = null
+
+      const datosCiudadanoStorage = localStorage.getItem('usuario_gecap')
+      if (datosCiudadanoStorage) {
+        try {
+          const ciudadanoObj = JSON.parse(datosCiudadanoStorage)
+          documentoCiudadano = ciudadanoObj.numero_documento || null
+          usuarioUuid = ciudadanoObj.user_id || null
+          nombreCiudadano = ciudadanoObj.nombre_completo || null
+        } catch (e) {
+          console.error('Error al parsear ciudadano_gecap:', e)
+        }
+      }
+
+      const payload = {
+        ciudadano_documento: documentoCiudadano,
+        usuario_id: usuarioUuid,
+        tipo_alerta: datosFormulario.tipo_alerta,
+        descripcion: datosFormulario.descripcion,
+        latitud: datosFormulario.latitud,
+        longitud: datosFormulario.longitud,
+        nombre_ciudadano: nombreCiudadano,
+        archivos: archivosFotos
+      }
+
+      console.log('📤 [Controller] Enviando payload completo a alertasService:', payload)
+
+      const respuesta = await alertasService.crearAlerta(payload)
+      return respuesta
+    } catch (error) {
+      console.error('❌ Error en controlador crearAlertaController:', error)
+      throw error
+    }
+  }
+}
