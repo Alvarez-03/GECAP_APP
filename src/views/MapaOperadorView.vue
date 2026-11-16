@@ -8,7 +8,6 @@ import 'vue3-toastify/dist/index.css'
 import { supabase } from '../services/supabase'
 import { mapaService } from '../services/mapaService'
 import { reportesService } from '../services/reportesService'
-import { cerrarSesionOperador } from '../services/authService'
 import SidebarOperador from '../components/policia/SidebarOperador.vue'
 import PopupAlerta from '../components/policia/PopupAlerta.vue'
 
@@ -27,17 +26,49 @@ const alertaActiva = ref(null)
 
 let marcadoresBasesMap = {}
 let marcadoresAlertasMap = {}
-let poligonosCuadrantesMap = {} // NUEVO: Almacén de capas de polígonos en Leaflet
-let canalAlertas = null // Suscripción Realtime
+let canalAlertas = null
 
-// Solicitud de permisos para Notificaciones del Navegador (Escritorio / Dispositivo)
+// Obtener jurisdicción del operador desde localStorage ('operador_gecap')
+const obtenerJurisdiccionOperador = () => {
+  try {
+    const raw = localStorage.getItem('operador_gecap')
+    if (!raw) return { idCuadrante: null, idEstacion: null }
+    const operador = JSON.parse(raw)
+    return {
+      idCuadrante: operador?.id_cuadrante ? String(operador.id_cuadrante) : null,
+      idEstacion: operador?.id_estacion ? String(operador.id_estacion) : null
+    }
+  } catch (e) {
+    console.error('Error al leer operador_gecap de localStorage:', e)
+    return { idCuadrante: null, idEstacion: null }
+  }
+}
+
+// Validar si una alerta pertenece al cuadrante o estación del operador
+const perteneceAlOperador = (alerta) => {
+  const { idCuadrante, idEstacion } = obtenerJurisdiccionOperador()
+  
+  // Si el operador no tiene ninguno asignado en el storage, no mostrar alertas por seguridad
+  if (!idCuadrante && !idEstacion) return false
+
+  const idsPermitidos = [idCuadrante, idEstacion].filter(Boolean)
+  const candidatosAlerta = [
+    alerta?.id_cuadrante,
+    alerta?.id_estacion,
+    alerta?.base_policial_id
+  ]
+    .filter(Boolean)
+    .map(String)
+
+  return candidatosAlerta.some((id) => idsPermitidos.includes(id))
+}
+
 const solicitarPermisoNotificaciones = () => {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
   }
 }
 
-// Disparar Notificación Nativa del Sistema/Dispositivo
 const mostrarNotificacionNativa = (alerta) => {
   if ('Notification' in window && Notification.permission === 'granted') {
     const titulo = `🚨 ¡NUEVA ALERTA RECIBIDA! [${alerta.codigo_seguimiento || 'S/C'}]`
@@ -48,7 +79,6 @@ const mostrarNotificacionNativa = (alerta) => {
     }
 
     const notificacion = new Notification(titulo, opciones)
-    
     notificacion.onclick = () => {
       window.focus()
       centrarEnElemento(alerta)
@@ -57,24 +87,17 @@ const mostrarNotificacionNativa = (alerta) => {
   }
 }
 
-// Reproducir síntesis de voz nativa con el código de la alerta
 const reproducirVozAlerta = (alerta) => {
   try {
-    if (!('speechSynthesis' in window)) {
-      console.warn('La síntesis de voz no es compatible con este navegador.')
-      return
-    }
-
-    // Cancelar cualquier voz anterior que esté hablando para que no se encimen
+    if (!('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
 
     const textoMensaje = `Atención. Nueva alerta recibida. Código ${alerta}`
-
     const utterance = new SpeechSynthesisUtterance(textoMensaje)
-    utterance.lang = 'es-CO' // Español de Colombia (ajustado a la región de Tuluá)
-    utterance.rate = 1.0     // Velocidad de lectura normal
-    utterance.pitch = 1.1    // Tono ligeramente más alto para darle dinamismo de alerta
-    utterance.volume = 1.0   // Volumen al máximo
+    utterance.lang = 'es-CO'
+    utterance.rate = 1.0
+    utterance.pitch = 1.1
+    utterance.volume = 1.0
 
     window.speechSynthesis.speak(utterance)
   } catch (e) {
@@ -84,7 +107,6 @@ const reproducirVozAlerta = (alerta) => {
 
 const mostrarToastAlerta = (alerta) => {
   const codigo = alerta.codigo_seguimiento || alerta.tipo_alerta || 'NUEVA ALERTA'
-  
   toast.error(`🚨 ¡NUEVA ALERTA! Código: ${codigo}. Clic para enfocar en mapa.`, {
     position: 'top-right',
     autoClose: 8000,
@@ -98,29 +120,34 @@ const mostrarToastAlerta = (alerta) => {
 
 const cargarDatos = async () => {
   cargando.value = true
+  const { idCuadrante, idEstacion } = obtenerJurisdiccionOperador()
+
   const [dataBases, resAlertas] = await Promise.all([
     mapaService.obtenerBasesPoliciales(),
-    reportesService.obtenerTodasLasAlertas(),
+    reportesService.obtenerAlertasPorOperador(idCuadrante, idEstacion)
   ])
 
   bases.value = dataBases || []
-  alertas.value = resAlertas.alertas || []
+  // Doble validación en cliente por seguridad
+  alertas.value = (resAlertas.alertas || []).filter(perteneceAlOperador)
 
-  idsSeleccionados.value = bases.value.map(b => b.id)
-  
-  const idsActualesAlertas = alertas.value.map(a => a.id)
+  idsSeleccionados.value = bases.value.map((b) => b.id)
+
+  const idsActualesAlertas = alertas.value.map((a) => a.id)
   if (alertasSeleccionadas.value.length === 0) {
     alertasSeleccionadas.value = idsActualesAlertas
   } else {
-    const nuevasAlertas = idsActualesAlertas.filter(id => !alertasSeleccionadas.value.includes(id))
-    alertasSeleccionadas.value = [...alertasSeleccionadas.value, ...nuevasAlertas]
+    const nuevasAlertas = idsActualesAlertas.filter((id) => !alertasSeleccionadas.value.includes(id))
+    alertasSeleccionadas.value = [
+      ...alertasSeleccionadas.value.filter((id) => idsActualesAlertas.includes(id)),
+      ...nuevasAlertas
+    ]
   }
 
   actualizarMapa()
   cargando.value = false
 }
 
-// Vigilar cambios en las selecciones para actualizar el mapa en tiempo real
 watch(
   () => [idsSeleccionados.value, alertasSeleccionadas.value],
   () => {
@@ -134,7 +161,7 @@ const actualizarMapa = () => {
 
   // 1. Marcadores de Bases
   const idsBasesSeleccionadasStr = idsSeleccionados.value.map(String)
-  
+
   Object.keys(marcadoresBasesMap).forEach((id) => {
     if (!idsBasesSeleccionadasStr.includes(String(id))) {
       map.removeLayer(marcadoresBasesMap[id])
@@ -155,7 +182,7 @@ const actualizarMapa = () => {
     }
   })
 
-  // 2. Marcadores de Alertas
+  // 2. Marcadores de Alertas (filtradas por jurisdicción)
   const idsAlertasSeleccionadasStr = alertasSeleccionadas.value.map(String)
 
   Object.keys(marcadoresAlertasMap).forEach((id) => {
@@ -173,14 +200,20 @@ const actualizarMapa = () => {
 
       if (!isNaN(lat) && !isNaN(lng)) {
         const codigoTipo = (alerta.tipo_alerta || '10-00').slice(0, 5)
-        const esPendiente = alerta.estado_actual === 'PENDIENTE'
+        const estadoUpper = (alerta.estado_actual || 'PENDIENTE').toUpperCase()
+        const esPendiente = estadoUpper === 'PENDIENTE'
+
+        let colorPin = 'border-amber-500 text-amber-400' // 5.14 - DESPLAZANDOSE
+        if (esPendiente) colorPin = 'border-red-500 text-red-400'
+        else if (estadoUpper.includes('5.03')) colorPin = 'border-sky-500 text-sky-400'
+        else if (estadoUpper.includes('5.50')) colorPin = 'border-emerald-500 text-emerald-400'
 
         const iconoAlerta = L.divIcon({
           className: 'custom-police-pin',
           html: `
             <div class="relative flex items-center justify-center group cursor-pointer">
               ${esPendiente ? '<span class="absolute -inset-1 rounded-full bg-red-500/40 animate-ping"></span>' : ''}
-              <div class="relative flex items-center gap-1.5 px-2.5 py-1 bg-slate-900/90 border-2 ${esPendiente ? 'border-red-500 text-red-400' : 'border-amber-500 text-amber-400'} rounded-full shadow-2xl backdrop-blur-md">
+              <div class="relative flex items-center gap-1.5 px-2.5 py-1 bg-slate-900/90 border-2 ${colorPin} rounded-full shadow-2xl backdrop-blur-md">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
@@ -210,18 +243,16 @@ const centrarEnElemento = (item) => {
   const lng = parseFloat(item.longitud ?? item.lng)
   if (map && !isNaN(lat) && !isNaN(lng)) {
     map.flyTo([lat, lng], 16, { duration: 1.2 })
-    alertaActiva.value = item 
+    alertaActiva.value = item
   }
 }
 
-// Función ejecutada al recibir el evento del popup
 const handleActualizarEstado = async ({ id, nuevoEstado }) => {
-  // Llamada limpia al servicio
   const resultado = await reportesService.actualizarEstadoAlerta(id, nuevoEstado)
-  
+
   if (resultado.success) {
     toast.success(`Estado actualizado a: ${nuevoEstado}`)
-    await cargarDatos() // Recarga las alertas del mapa desde Supabase
+    await cargarDatos()
   } else {
     toast.error('No se pudo actualizar el estado en la base de datos.')
   }
@@ -236,7 +267,7 @@ onMounted(async () => {
   map = L.map(mapContainer.value, { zoomControl: true, minZoom: 11, maxZoom: 18 }).setView([4.0847, -76.1954], 14)
 
   const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY || ''
-  const urlTile = cartoApiKey 
+  const urlTile = cartoApiKey
     ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png?key=${cartoApiKey}`
     : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
@@ -244,7 +275,7 @@ onMounted(async () => {
 
   await cargarDatos()
 
-  // ESCUCHA EN TIEMPO REAL CON NOTIFICACIONES
+  // ESCUCHA EN TIEMPO REAL FILTRADA POR JURISDICCIÓN DEL OPERADOR
   canalAlertas = supabase
     .channel('cambios-alertas-operador')
     .on(
@@ -252,7 +283,8 @@ onMounted(async () => {
       { event: 'INSERT', schema: 'public', table: 'alertas' },
       async (payload) => {
         const nuevaAlerta = payload.new
-        console.log('🚨 Nueva alerta insertada:', nuevaAlerta)
+        // Ignorar alertas que no correspondan al cuadrante o estación del operador
+        if (!perteneceAlOperador(nuevaAlerta)) return
 
         await cargarDatos()
         mostrarToastAlerta(nuevaAlerta)
@@ -263,8 +295,15 @@ onMounted(async () => {
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'alertas' },
-      async () => {
-        await cargarDatos()
+      async (payload) => {
+        // Recargar si la alerta actualizada pertenece al operador o ya estaba en su mapa
+        const afectaOperador =
+          perteneceAlOperador(payload.new) ||
+          alertas.value.some((a) => String(a.id) === String(payload.new?.id))
+
+        if (afectaOperador) {
+          await cargarDatos()
+        }
       }
     )
     .subscribe()
@@ -297,10 +336,8 @@ const handleBack = async () => {
     />
 
     <main class="flex-1 h-full relative">
-      <!-- Mapa Leaflet -->
       <div ref="mapContainer" class="w-full h-full z-0"></div>
 
-      <!-- POPUP FLOTANTE REUTILIZABLE -->
       <div 
         v-if="alertaActiva" 
         class="absolute top-6 right-6 z-20"

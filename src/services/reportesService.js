@@ -59,6 +59,41 @@ export const reportesService = {
     }
   },
 
+  async obtenerAlertasPorOperador(idCuadrante, idEstacion) {
+    try {
+      const ids = [idCuadrante, idEstacion].filter(Boolean)
+      if (ids.length === 0) {
+        return { success: true, alertas: [] }
+      }
+
+      const { data, error } = await supabase
+        .from('alertas')
+        .select(`
+          id,
+          codigo_seguimiento,
+          ciudadano_documento,
+          usuario_id,
+          tipo_alerta,
+          descripcion,
+          latitud,
+          longitud,
+          id_cuadrante,
+          estado_actual,
+          created_at,
+          nombre_ciudadano,
+          alerta_fotos(url_foto)
+        `)
+        .in('id_cuadrante', ids)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return { success: true, alertas: data || [] }
+    } catch (error) {
+      console.error('Error al obtener alertas del operador:', error.message)
+      return { success: false, alertas: [] }
+    }
+  },
+
   async actualizarEstadoAlerta(alertaId, nuevoEstado) {
     try {
       const { data, error } = await supabase
@@ -68,7 +103,6 @@ export const reportesService = {
         .select()
 
       if (error) throw error
-      console.log("increible")
       return { success: true, data }
     } catch (error) {
       console.error('Error al actualizar el estado de la alerta:', error.message)

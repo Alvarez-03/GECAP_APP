@@ -20,6 +20,42 @@ const mostrarAlertas = ref(true)
 const filtroTipoBase = ref('TODOS')
 const filtroEstadoAlerta = ref('TODAS')
 
+// Catálogo oficial usando prefijos/códigos clave para coincidencia exacta sin importar sufijos
+const ESTADOS_OFICIALES = [
+  { label: 'Todas', value: 'TODAS', activeClass: 'bg-slate-600 text-white' },
+  { label: 'Pendiente', value: 'PENDIENTE', activeClass: 'bg-red-600 text-white' },
+  { label: '5.14 Desplazándose', value: '5.14', activeClass: 'bg-amber-600 text-white' },
+  { label: '5.03 En Sitio', value: '5.03', activeClass: 'bg-blue-600 text-white' },
+  { label: '5.50 Finalizado', value: '5.50', activeClass: 'bg-emerald-600 text-white' }
+]
+
+// Función auxiliar para verificar si una alerta coincide con el filtro seleccionado
+const coincideConEstado = (alerta, filtro) => {
+  if (filtro === 'TODAS') return true
+  const estadoReal = (alerta.estado_actual || 'PENDIENTE').toUpperCase().trim()
+  if (filtro === 'PENDIENTE') return estadoReal === 'PENDIENTE'
+  return estadoReal.includes(filtro)
+}
+
+// Conteo rápido por estado
+const conteoPorEstado = computed(() => {
+  const conteo = {
+    TODAS: props.alertas.length,
+    PENDIENTE: 0,
+    '5.14': 0,
+    '5.03': 0,
+    '5.50': 0
+  }
+  props.alertas.forEach((a) => {
+    const est = (a.estado_actual || 'PENDIENTE').toUpperCase().trim()
+    if (est === 'PENDIENTE') conteo.PENDIENTE += 1
+    else if (est.includes('5.14')) conteo['5.14'] += 1
+    else if (est.includes('5.03')) conteo['5.03'] += 1
+    else if (est.includes('5.50')) conteo['5.50'] += 1
+  })
+  return conteo
+})
+
 // Filtrado dinámico de bases
 const basesFiltradas = computed(() => {
   if (filtroTipoBase.value === 'TODOS') return props.bases
@@ -28,9 +64,18 @@ const basesFiltradas = computed(() => {
 
 // Filtrado dinámico de alertas
 const alertasFiltradas = computed(() => {
-  if (filtroEstadoAlerta.value === 'TODAS') return props.alertas
-  return props.alertas.filter(a => a.estado_actual?.toUpperCase() === filtroEstadoAlerta.value)
+  return props.alertas.filter(a => coincideConEstado(a, filtroEstadoAlerta.value))
 })
+
+// Estilos dinámicos para la etiqueta de estado de cada tarjeta
+const obtenerBadgeEstado = (estadoRaw) => {
+  const estado = (estadoRaw || 'PENDIENTE').toUpperCase()
+  if (estado === 'PENDIENTE') return 'bg-red-500/20 text-red-400 border border-red-500/30'
+  if (estado.includes('5.14')) return 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+  if (estado.includes('5.03')) return 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+  if (estado.includes('5.50')) return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+  return 'bg-slate-700 text-slate-300'
+}
 
 // Control de selección individual/masiva de bases
 const estaBaseSeleccionada = (id) => props.idsSeleccionados.includes(id)
@@ -50,8 +95,21 @@ const toggleAlerta = (id) => {
   emit('update:alertasSeleccionadas', nueva)
 }
 
-const seleccionarTodasAlertas = () => emit('update:alertasSeleccionadas', props.alertas.map(a => a.id))
-const deseleccionarTodasAlertas = () => emit('update:alertasSeleccionadas', [])
+// Mostrar u ocultar las alertas actualmente visibles según el filtro activo
+const seleccionarAlertasFiltradas = () => {
+  const idsFiltrados = alertasFiltradas.value.map(a => a.id)
+  const combinados = Array.from(new Set([...props.alertasSeleccionadas, ...idsFiltrados]))
+  emit('update:alertasSeleccionadas', combinados)
+}
+
+const deseleccionarAlertasFiltradas = () => {
+  if (filtroEstadoAlerta.value === 'TODAS') {
+    emit('update:alertasSeleccionadas', [])
+  } else {
+    const idsFiltrados = new Set(alertasFiltradas.value.map(a => a.id))
+    emit('update:alertasSeleccionadas', props.alertasSeleccionadas.filter(id => !idsFiltrados.has(id)))
+  }
+}
 
 const seleccionarTodasEstaciones = () => emit('update:idsSeleccionados', props.bases.map(b => b.id))
 const deseleccionarTodasEstaciones = () => emit('update:idsSeleccionados', [])
@@ -65,7 +123,7 @@ const deseleccionarTodasEstaciones = () => emit('update:idsSeleccionados', [])
       <div class="flex items-center gap-2 text-white">
         <span class="font-black tracking-wide text-sm uppercase">Centro de Control</span>
       </div>
-      <button @click="$emit('Back')" title="Cerrar Sesión" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition cursor-pointer">
+      <button @click="$emit('Back')" title="Volver al Menú Principal" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition cursor-pointer">
         <House class="w-5 h-5" />
       </button>
     </div>
@@ -82,7 +140,7 @@ const deseleccionarTodasEstaciones = () => emit('update:idsSeleccionados', [])
 
     <div class="flex-1 overflow-y-auto custom-scroll">
       
-      <!-- SECCIÓN 1: ACCORDEÓN DE ALERTAS Y REPORTES -->
+      <!-- SECCIÓN 1: ACORDEÓN DE ALERTAS Y REPORTES -->
       <div class="border-b border-slate-700/60 bg-slate-900/40">
         <button @click="mostrarAlertas = !mostrarAlertas" class="w-full p-3 flex items-center justify-between text-left hover:bg-slate-700/30 transition cursor-pointer">
           <div class="flex items-center gap-2">
@@ -90,32 +148,46 @@ const deseleccionarTodasEstaciones = () => emit('update:idsSeleccionados', [])
             <span class="text-xs font-black text-slate-200 uppercase tracking-wider">
               Alertas y Reportes ({{ alertasSeleccionadas.length }}/{{ alertas.length }})
             </span>
-            <span class="w-2.5 h-2.5 rounded-full bg-gecap-red animate-ping"></span>
+            <span v-if="conteoPorEstado.PENDIENTE > 0" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
           </div>
           <component :is="mostrarAlertas ? ChevronUp : ChevronDown" class="w-4 h-4 text-slate-400" />
         </button>
 
-        <!-- Filtros de Alertas -->
-        <div v-if="mostrarAlertas" class="p-3 space-y-2">
-          <div class="flex gap-1.5">
-            <button @click="filtroEstadoAlerta = 'TODAS'" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer" :class="filtroEstadoAlerta === 'TODAS' ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'">
-              Todas
-            </button>
-            <button @click="filtroEstadoAlerta = 'PENDIENTE'" class="flex-1 py-1 px-1 rounded text-[9px] font-bold uppercase transition cursor-pointer" :class="filtroEstadoAlerta === 'PENDIENTE' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'">
-              Pendientes
-            </button>
-            <button @click="filtroEstadoAlerta = 'EN PROCESO'" class="flex-1 py-1 px-1 rounded text-[9px] font-bold uppercase transition cursor-pointer" :class="filtroEstadoAlerta === 'EN PROCESO' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'">
-              En Proceso
+        <!-- Filtros de Alertas con Estados Oficiales -->
+        <div v-if="mostrarAlertas" class="p-3 space-y-2.5">
+          <div class="grid grid-cols-2 gap-1.5">
+            <button
+              v-for="est in ESTADOS_OFICIALES"
+              :key="est.value"
+              @click="filtroEstadoAlerta = est.value"
+              class="py-1.5 px-2 rounded-lg text-[9.5px] font-bold uppercase transition cursor-pointer flex items-center justify-between gap-1"
+              :class="[
+                est.value === 'TODAS' ? 'col-span-2' : '',
+                filtroEstadoAlerta === est.value ? est.activeClass + ' shadow' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+              ]"
+            >
+              <span class="truncate">{{ est.label }}</span>
+              <span class="px-1.5 py-0.2 bg-black/25 rounded text-[9px] font-black">
+                {{ conteoPorEstado[est.value] ?? 0 }}
+              </span>
             </button>
           </div>
 
           <div class="flex justify-between text-[10px] text-slate-400 px-1">
-            <button @click="seleccionarTodasAlertas" class="hover:text-white transition underline cursor-pointer">Mostrar todas</button>
-            <button @click="deseleccionarTodasAlertas" class="hover:text-red-400 transition underline cursor-pointer">Ocultar todas</button>
+            <button @click="seleccionarAlertasFiltradas" class="hover:text-white transition underline cursor-pointer">
+              Mostrar {{ filtroEstadoAlerta === 'TODAS' ? 'todas' : 'filtradas' }}
+            </button>
+            <button @click="deseleccionarAlertasFiltradas" class="hover:text-red-400 transition underline cursor-pointer">
+              Ocultar {{ filtroEstadoAlerta === 'TODAS' ? 'todas' : 'filtradas' }}
+            </button>
           </div>
 
           <!-- Lista de Alertas -->
-          <div class="space-y-2 max-h-56 overflow-y-auto custom-scroll pt-1">
+          <div v-if="alertasFiltradas.length === 0" class="text-center py-6 text-[11px] text-slate-500">
+            No hay alertas en estado <span class="text-slate-300 font-bold">{{ filtroEstadoAlerta }}</span>.
+          </div>
+
+          <div v-else class="space-y-2 max-h-60 overflow-y-auto custom-scroll pt-1">
             <div 
               v-for="alerta in alertasFiltradas" 
               :key="alerta.id"
@@ -129,9 +201,8 @@ const deseleccionarTodasEstaciones = () => emit('update:idsSeleccionados', [])
               <div class="flex-1 min-w-0 cursor-pointer" @click="$emit('centrarAlerta', alerta)">
                 <div class="flex items-center justify-between gap-1">
                   <span class="text-xs font-bold text-white truncate">{{ alerta.tipo_alerta || 'Alerta Ciudadana' }}</span>
-                  <span class="px-1.5 py-0.5 rounded text-[7px] font-black uppercase shrink-0" :class="alerta.estado_actual === 'PENDIENTE' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-400'">
+                  <span class="px-1.5 py-0.5 rounded text-[7.5px] font-black uppercase shrink-0" :class="obtenerBadgeEstado(alerta.estado_actual)">
                     {{ alerta.estado_actual || 'PENDIENTE' }}
-                
                   </span>
                 </div>
                 <p class="text-[10px] text-slate-400 truncate mt-0.5">{{ alerta.descripcion || 'Sin descripción' }}</p>
@@ -141,15 +212,15 @@ const deseleccionarTodasEstaciones = () => emit('update:idsSeleccionados', [])
         </div>
       </div>
 
-      <!-- SECCIÓN 2: ACCORDEÓN DE BASES Y CAIS -->
+      <!-- SECCIÓN 2: ACORDEÓN DE BASES Y CAIS -->
       <div class="border-b border-slate-700/60 bg-slate-900/20">
         <button @click="mostrarBases = !mostrarBases" class="w-full p-3 flex items-center justify-between text-left hover:bg-slate-700/30 transition cursor-pointer">
-            <div class="flex items-center gap-2">
-                <Siren class="w-4 h-4 text-gecap-blue" />
-                <span class="text-xs font-black text-slate-300 uppercase tracking-wider">
-                    Bases y CAIs ({{ idsSeleccionados.length }}/{{ bases.length }})
-                </span>
-            </div>
+          <div class="flex items-center gap-2">
+            <Siren class="w-4 h-4 text-gecap-blue" />
+            <span class="text-xs font-black text-slate-300 uppercase tracking-wider">
+              Bases y CAIs ({{ idsSeleccionados.length }}/{{ bases.length }})
+            </span>
+          </div>
           <component :is="mostrarBases ? ChevronUp : ChevronDown" class="w-4 h-4 text-slate-400" />
         </button>
 
