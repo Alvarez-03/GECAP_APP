@@ -11,6 +11,16 @@ import NavbarCiudadano from '../components/ciudadano/NavbarCiudadano.vue'
 import CardTipoAlerta from '../components/ciudadano/CardTipoAlerta.vue'
 import { crearAlertaController } from '../controllers/crearAlertaController'
 import { setupSpeech } from '../utils/speechHelper'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+
+let DefaultIcon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+})
+L.Marker.prototype.options.icon = DefaultIcon
 
 const router = useRouter()
 const route = useRoute()
