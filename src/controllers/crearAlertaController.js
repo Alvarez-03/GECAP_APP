@@ -14,13 +14,12 @@ export const crearAlertaController = {
 
   async registrarAlerta(datosFormulario, archivosFotos = []) {
     try {
-      console.log('📦 [Controller] Archivos recibidos para procesar:', archivosFotos)
 
       let documentoCiudadano = null
       let usuarioUuid = null
       let nombreCiudadano = null
 
-      const datosCiudadanoStorage = localStorage.getItem('usuario_gecap')
+      const datosCiudadanoStorage = localStorage.getItem('ciudadano_gecap')
       if (datosCiudadanoStorage) {
         try {
           const ciudadanoObj = JSON.parse(datosCiudadanoStorage)
@@ -42,8 +41,6 @@ export const crearAlertaController = {
         nombre_ciudadano: nombreCiudadano,
         archivos: archivosFotos
       }
-
-      console.log('📤 [Controller] Enviando payload completo a alertasService:', payload)
 
       const respuesta = await alertasService.crearAlerta(payload)
       return respuesta
