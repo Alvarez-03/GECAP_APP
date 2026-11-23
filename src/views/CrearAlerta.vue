@@ -144,7 +144,7 @@ onMounted(async () => {
 const abrirSelectorUbicacion = async () => {
   mostrarModalMapa.value = true
   await nextTick()
-  
+
   const currentLat = obtenerLatitudActual()
   const currentLng = obtenerLongitudActual()
 
@@ -278,9 +278,9 @@ const enviarReporte = async () => {
   const LAT_DEFECTO = 4.0847
   const LNG_DEFECTO = -76.1954
 
-  const usaCoordenadasPorDefecto = (latManual.value === null && (coords.value.latitude === Infinity || !coords.value.latitude)) && 
+  const usaCoordenadasPorDefecto = (latManual.value === null && (coords.value.latitude === Infinity || !coords.value.latitude)) &&
     (latitud === LAT_DEFECTO && longitud === LNG_DEFECTO)
-    
+
   if (!latitud || !longitud || latitud === Infinity || usaCoordenadasPorDefecto) {
     toast.warning('Por favor define tu ubicación exacta en el mapa antes de enviar.', { position: 'top-center' })
     abrirSelectorUbicacion()
@@ -311,7 +311,10 @@ const enviarReporte = async () => {
         descripcion: descripcionAudio.value || 'Sin descripción adicional',
         lat: latitud,
         lng: longitud,
-        accuracy: Math.round(coords.value.accuracy || 0)
+        accuracy: Math.round(coords.value.accuracy || 0),
+        id_cuadrante: alertaCreada.id_cuadrante || '',
+        cuadrante: alertaCreada.cuadrante_nombre || '',
+        zona: alertaCreada.cuadrante_numero_zona ?? ''
       }
     })
   } catch (error) {
@@ -329,7 +332,7 @@ const cancelarReporte = () => {
 <template>
   <div class="h-dvh bg-slate-100 flex justify-center items-center p-0 font-sans overflow-hidden">
     <div class="w-full h-full max-w-md bg-white shadow-2xl flex flex-col justify-between relative overflow-hidden">
-      
+
       <HeaderCiudadano @salir="cancelarReporte" />
 
       <!-- BARRA DE PROGRESO DE PASOS -->
@@ -346,7 +349,7 @@ const cancelarReporte = () => {
       </div>
 
       <main class="flex-1 px-4 py-4 flex flex-col justify-start overflow-y-auto space-y-4">
-        
+
         <!-- PASO 1: ELEGIR TIPO DE REPORTE -->
         <div v-if="currentStep === 1" class="space-y-3">
           <div class="text-center">
@@ -362,7 +365,7 @@ const cancelarReporte = () => {
           </div>
 
           <div v-else class="max-h-[340px] overflow-y-auto pr-1 space-y-2.5 scroll-smooth custom-scrollbar pb-2">
-            <CardTipoAlerta 
+            <CardTipoAlerta
               v-for="item in listaTiposReportes"
               :key="item.id"
               :titulo="item.situacion"
@@ -374,7 +377,7 @@ const cancelarReporte = () => {
           </div>
 
           <div class="pt-2">
-            <button 
+            <button
               @click="siguientePaso"
               class="w-full bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer uppercase tracking-wider text-base"
             >
@@ -394,13 +397,13 @@ const cancelarReporte = () => {
           </div>
 
           <div class="pt-1">
-            <button 
+            <button
               type="button"
               @click="toggleGrabacionVoz"
               :class="[
                 'flex items-center mb-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer w-full justify-center gap-2',
-                grabandoVoz 
-                  ? 'bg-gecap-darkblue/70 text-white animate-pulse' 
+                grabandoVoz
+                  ? 'bg-gecap-darkblue/70 text-white animate-pulse'
                   : 'bg-gecap-darkblue text-white hover:bg-gecap-darkblue/90'
               ]"
             >
@@ -412,7 +415,7 @@ const cancelarReporte = () => {
             <div class="space-y-2.5 mt-2">
               <div class="flex items-center justify-between mt-1">
                 <span class="text-[12px] text-slate-400 font-medium">Escucha tu reporte antes de continuar:</span>
-                <button 
+                <button
                   type="button"
                   @click="leerTextoEnVozAlta(descripcionAudio)"
                   class="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[11px] font-bold transition-colors cursor-pointer"
@@ -423,7 +426,7 @@ const cancelarReporte = () => {
               </div>
 
               <div class="relative">
-                <textarea 
+                <textarea
                   :value="descripcionAudio"
                   @input="handleInputTexto"
                   rows="4"
@@ -435,14 +438,14 @@ const cancelarReporte = () => {
           </div>
 
           <div class="flex gap-2 pt-4">
-            <button 
+            <button
               @click="pasoAnterior"
               class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black py-3 rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
             >
               <ChevronLeft class="w-4 h-4" />
               Atrás
             </button>
-            <button 
+            <button
               @click="siguientePaso"
               class="w-2/3 bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
             >
@@ -463,17 +466,17 @@ const cancelarReporte = () => {
 
           <div class="space-y-3">
             <!-- Input file oculto -->
-            <input 
+            <input
               ref="fileInputRef"
-              type="file" 
-              accept="image/*" 
-              multiple 
-              class="hidden" 
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
               @change="handleSeleccionarFotos"
             />
 
             <!-- BOTÓN DE EVIDENCIA -->
-            <div 
+            <div
               @click="abrirSelectorEvidencia"
               class="flex items-center justify-between w-full p-3 bg-gecap-darkblue rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all cursor-pointer select-none"
             >
@@ -496,8 +499,8 @@ const cancelarReporte = () => {
             <div v-if="previsualizacionesFotos.length > 0" class="grid grid-cols-4 gap-2 pt-1">
               <div v-for="(img, idx) in previsualizacionesFotos" :key="idx" class="relative aspect-square rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm">
                 <img :src="img" class="w-full h-full object-cover" />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   @click.stop="eliminarFoto(idx)"
                   class="absolute top-1 right-1 bg-slate-900/80 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-red-600 transition-colors cursor-pointer"
                 >
@@ -508,14 +511,14 @@ const cancelarReporte = () => {
           </div>
 
           <div class="flex gap-2 pt-4">
-            <button 
+            <button
               @click="pasoAnterior"
               class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black py-3 rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
             >
               <ChevronLeft class="w-4 h-4" />
               Atrás
             </button>
-            <button 
+            <button
               @click="enviarReporte"
               :disabled="enviando"
               class="w-2/3 bg-gecap-red hover:bg-gecap-red/80 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-1 transition-all cursor-pointer uppercase text-xs"
@@ -542,7 +545,7 @@ const cancelarReporte = () => {
           </span>
         </div>
 
-        <button 
+        <button
           type="button"
           @click="abrirSelectorUbicacion"
           class="px-2.5 py-1 bg-gecap-darkblue hover:bg-gecap-darkblue text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm cursor-pointer shrink-0"
@@ -555,7 +558,7 @@ const cancelarReporte = () => {
       <!-- Modal Mapa -->
       <div v-if="mostrarModalMapa" class="absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col justify-end sm:justify-center p-0 sm:p-4">
         <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col h-[450px]">
-          
+
           <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
             <div>
               <h3 class="text-base font-black uppercase tracking-wider">Ajustar Ubicación del Incidente</h3>
@@ -570,7 +573,7 @@ const cancelarReporte = () => {
             <span class="text-[10px] text-slate-500 font-mono">
               Lat: {{ obtenerLatitudActual().toFixed(4) }}, Lng: {{ obtenerLongitudActual().toFixed(4) }}
             </span>
-            <button 
+            <button
               @click="confirmarUbicacionManual"
               class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-base font-black uppercase tracking-wider flex items-center gap-1.5 shadow cursor-pointer"
             >
