@@ -20,6 +20,121 @@ export const mapaService = {
     }
   },
 
+  async obtenerBarriosConCuadrante(idCuadrante = null) {
+    try {
+      if (!idCuadrante) {
+        return []
+      }
+
+      const { data, error } = await supabase
+        .from('barrios_wikimapia_tulua')
+        .select(`
+          id,
+          wikimapia_id,
+          nombre_barrio,
+          descripcion,
+          comuna_o_zona,
+          cuadrante_id,
+          poligono_geojson,
+          coordenadas_cardinales,
+          cuadrantes:cuadrante_id (
+            id,
+            numero_zona,
+            nombre,
+            telefono_contacto,
+            color_hex,
+            descripcion_geografica
+          )
+        `)
+        .eq('cuadrante_id', idCuadrante)
+        .not('poligono_geojson', 'is', null)
+
+      if (error) {
+        console.error('Error Supabase al consultar barrios del cuadrante:', error)
+        return []
+      }
+
+      return data || []
+    } catch (err) {
+      console.error('Error inesperado al obtener barrios del cuadrante:', err)
+      return []
+    }
+  },
+
+  obtenerColorCuadrante(barrio) {
+    const cuadrante = Array.isArray(barrio?.cuadrantes)
+      ? barrio.cuadrantes[0]
+      : barrio?.cuadrantes
+
+    if (cuadrante?.color_hex) {
+      return cuadrante.color_hex
+    }
+
+    const coloresPorZona = {
+      1: '#E11D48',
+      2: '#2563EB',
+      3: '#16A34A',
+      4: '#D97706',
+      5: '#7C3AED',
+      6: '#0891B2',
+      7: '#DB2777',
+      8: '#4F46E5',
+      9: '#059669',
+      10: '#EA580C',
+      11: '#9333EA',
+      12: '#0284C7',
+      13: '#65A30D',
+      14: '#DC2626',
+      15: '#0D9488',
+      16: '#CA8A04',
+      17: '#C026D3',
+      18: '#475569'
+    }
+
+    return coloresPorZona[cuadrante?.numero_zona] || '#153E9E'
+  },
+
+  crearEstiloPoligonoBarrio(barrio) {
+    const color = this.obtenerColorCuadrante(barrio)
+    return {
+      color,
+      weight: 2.5,
+      opacity: 0.95,
+      fillColor: color,
+      fillOpacity: 0.28
+    }
+  },
+
+  crearPopupBarrio(barrio) {
+    const cuadrante = Array.isArray(barrio?.cuadrantes)
+      ? barrio.cuadrantes[0]
+      : barrio?.cuadrantes
+    const color = this.obtenerColorCuadrante(barrio)
+
+    const popupContent = document.createElement('div')
+    popupContent.className = 'font-sans p-1 min-w-[180px]'
+    popupContent.innerHTML = `
+      <div class="flex items-center gap-1.5 mb-1">
+        <span class="inline-block w-3 h-3 rounded-full shrink-0 border border-slate-300" style="background-color: ${color};"></span>
+        <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+          ${cuadrante?.nombre || (cuadrante?.numero_zona ? `Cuadrante / Zona ${cuadrante.numero_zona}` : 'Sin cuadrante')}
+        </span>
+      </div>
+      <h4 class="text-xs font-black text-slate-800 uppercase leading-tight">
+        ${barrio?.nombre_barrio || 'Barrio'}
+      </h4>
+      ${cuadrante?.telefono_contacto ? `
+        <p class="text-[11px] text-slate-600 mt-1 font-medium">
+          Tel. cuadrante: <span class="font-bold">${cuadrante.telefono_contacto}</span>
+        </p>` : ''}
+      ${barrio?.descripcion ? `
+        <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">
+          ${barrio.descripcion}
+        </p>` : ''}
+    `
+    return popupContent
+  },
+
   // Generador de iconos SVG para Leaflet
   crearIconoBase(tipo) {
     const esCAI = tipo?.toUpperCase().includes('CAI')

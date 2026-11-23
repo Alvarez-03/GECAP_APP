@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -16,6 +16,7 @@ const mapContainer = ref(null)
 let map = null
 
 const bases = ref([])
+const barrios = ref([])
 const alertas = ref([])
 const idsSeleccionados = ref([])
 const alertasSeleccionadas = ref([])
@@ -26,7 +27,23 @@ const alertaActiva = ref(null)
 
 let marcadoresBasesMap = {}
 let marcadoresAlertasMap = {}
+let capaBarriosGroup = null
 let canalAlertas = null
+let yaEnfocoCuadrante = false
+
+// Información del cuadrante asignado al operador para la leyenda
+const infoCuadranteOperador = computed(() => {
+  if (!barrios.value.length) return null
+  const primero = barrios.value[0]
+  const c = Array.isArray(primero?.cuadrantes) ? primero.cuadrantes[0] : primero?.cuadrantes
+  if (!c) return null
+  return {
+    id: c.id,
+    numero_zona: c.numero_zona,
+    nombre: c.nombre || `Zona ${c.numero_zona}`,
+    color_hex: c.color_hex || '#153E9E'
+  }
+})
 
 // Obtener jurisdicción del operador desde localStorage ('operador_gecap')
 const obtenerJurisdiccionOperador = () => {
@@ -122,12 +139,17 @@ const cargarDatos = async () => {
   cargando.value = true
   const { idCuadrante, idEstacion } = obtenerJurisdiccionOperador()
 
-  const [dataBases, resAlertas] = await Promise.all([
+  const [dataBases, dataBarrios, resAlertas] = await Promise.all([
     mapaService.obtenerBasesPoliciales(),
+    mapaService.obtenerBarriosConCuadrante(idCuadrante),
     reportesService.obtenerAlertasPorOperador(idCuadrante, idEstacion)
   ])
 
   bases.value = dataBases || []
+  // Doble validación por cuadrante del operador
+  barrios.value = (dataBarrios || []).filter(
+    (b) => idCuadrante && String(b.cuadrante_id) === idCuadrante
+  )
   // Doble validación en cliente por seguridad
   alertas.value = (resAlertas.alertas || []).filter(perteneceAlOperador)
 
@@ -158,6 +180,61 @@ watch(
 
 const actualizarMapa = () => {
   if (!map) return
+
+  // 0. Polígonos de Barrios pertenecientes al cuadrante del operador
+  if (!capaBarriosGroup) {
+    capaBarriosGroup = L.layerGroup().addTo(map)
+  }
+  capaBarriosGroup.clearLayers()
+
+  const boundsBarrios = L.latLngBounds()
+
+  barrios.value.forEach((barrio) => {
+    const geometria =
+      typeof barrio.poligono_geojson === 'string'
+        ? JSON.parse(barrio.poligono_geojson)
+        : barrio.poligono_geojson
+
+    if (!geometria || !geometria.type) return
+
+    const estiloBase = mapaService.crearEstiloPoligonoBarrio(barrio)
+    const colorCuadrante = mapaService.obtenerColorCuadrante(barrio)
+    const cuadrante = Array.isArray(barrio?.cuadrantes) ? barrio.cuadrantes[0] : barrio?.cuadrantes
+    const etiquetaCuadrante =
+      cuadrante?.nombre || (cuadrante?.numero_zona ? `Zona ${cuadrante.numero_zona}` : 'Cuadrante')
+
+    const layer = L.geoJSON(geometria, {
+      style: () => estiloBase
+    })
+
+    if (layer.getBounds().isValid()) {
+      boundsBarrios.extend(layer.getBounds())
+    }
+
+    layer.bindPopup(mapaService.crearPopupBarrio(barrio))
+    layer.bindTooltip(
+      `<strong>${barrio.nombre_barrio}</strong><br/><span style="color:${colorCuadrante};font-weight:700;">${etiquetaCuadrante}</span>`,
+      { sticky: true }
+    )
+
+    layer.on('mouseover', (e) => {
+      e.target.setStyle({
+        weight: 3,
+        fillOpacity: 0.45
+      })
+    })
+
+    layer.on('mouseout', (e) => {
+      e.target.setStyle(estiloBase)
+    })
+
+    layer.addTo(capaBarriosGroup)
+  })
+
+  if (!yaEnfocoCuadrante && boundsBarrios.isValid()) {
+    map.fitBounds(boundsBarrios, { padding: [40, 40], maxZoom: 16 })
+    yaEnfocoCuadrante = true
+  }
 
   // 1. Marcadores de Bases
   const idsBasesSeleccionadasStr = idsSeleccionados.value.map(String)
@@ -337,6 +414,26 @@ const handleBack = async () => {
 
     <main class="flex-1 h-full relative">
       <div ref="mapContainer" class="w-full h-full z-0"></div>
+
+      <!-- Tarjeta de cuadrante asignado al operador -->
+      <div
+        v-if="infoCuadranteOperador"
+        class="absolute bottom-4 right-4 z-10 max-w-xs bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 text-white shadow-xl"
+      >
+        <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+          Mi Cuadrante Asignado
+        </p>
+        <div class="flex items-center gap-2 text-xs font-bold text-slate-100">
+          <span
+            class="w-3.5 h-3.5 rounded-sm shrink-0 border border-white/40"
+            :style="{ backgroundColor: infoCuadranteOperador.color_hex }"
+          ></span>
+          <span class="truncate">{{ infoCuadranteOperador.nombre }}</span>
+        </div>
+        <p class="text-[11px] text-slate-300 mt-1">
+          Barrios en jurisdicción: <span class="font-bold text-white">{{ barrios.length }}</span>
+        </p>
+      </div>
 
       <div 
         v-if="alertaActiva" 
