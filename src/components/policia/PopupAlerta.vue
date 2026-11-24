@@ -11,7 +11,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  FileCheck2
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -21,10 +22,20 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['cerrar', 'actualizarEstado', 'ingresarCodigo', 'verEvidencia', 'reportarCod'])
+const emit = defineEmits(['cerrar', 'actualizarEstado', 'ingresarCodigo', 'verEvidencia', 'reportarCod', 'generarInforme'])
 
 // Estado local para el selector de estado
 const estadoSeleccionado = ref(props.alerta.estado_actual || 'PENDIENTE')
+
+// Solo se habilita "GENERAR INFORME" cuando el estado es PROCEDIMIENTO FINALIZADO
+const puedeGenerarInforme = computed(() => {
+  const actual = (props.alerta?.estado_actual || '').toUpperCase().trim()
+  const seleccionado = (estadoSeleccionado.value || '').toUpperCase().trim()
+  return (
+    actual === '5.50 - PROCEDIMIENTO FINALIZADO' ||
+    seleccionado === '5.50 - PROCEDIMIENTO FINALIZADO'
+  )
+})
 
 // Estados para el visor modal de evidencias tipo carrusel
 const mostrarModalEvidencia = ref(false)
@@ -111,6 +122,14 @@ const handleEnviarReporte = () => {
     nuevoEstado: estadoSeleccionado.value
   })
 }
+
+const handleGenerarInforme = () => {
+  if (!puedeGenerarInforme.value) return
+  emit('generarInforme', {
+    ...props.alerta,
+    estado_actual: estadoSeleccionado.value
+  })
+}
 </script>
 
 <template>
@@ -181,9 +200,16 @@ const handleEnviarReporte = () => {
         </button>
 
         <button 
-          @click="$emit('ingresarCodigo', alerta)"
-          class="flex-1 bg-red-700 hover:bg-red-800 text-white rounded-xl p-1.5 flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
-        >
+        @click="handleGenerarInforme"
+          :disabled="!puedeGenerarInforme"
+          :title="puedeGenerarInforme ? 'Generar informe final de procedimiento' : 'Disponible solo cuando el estado es 5.50 - PROCEDIMIENTO FINALIZADO'"
+          :class="[
+            'w-full rounded-xl py-1.5 px-3 flex items-center justify-center gap-2 transition border-2',
+            puedeGenerarInforme
+              ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 shadow-sm cursor-pointer'
+              : 'bg-slate-200 text-slate-400 border-slate-300 opacity-60 cursor-not-allowed'
+          ]"
+          >
           <FileText class="w-6 h-6 shrink-0" />
           <span class="text-[12px] font-black uppercase tracking-tight leading-tight">INGRESAR 5.03</span>
         </button>

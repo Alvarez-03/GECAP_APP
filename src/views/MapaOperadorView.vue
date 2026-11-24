@@ -10,6 +10,7 @@ import { mapaService } from '../services/mapaService'
 import { reportesService } from '../services/reportesService'
 import SidebarOperador from '../components/policia/SidebarOperador.vue'
 import PopupAlerta from '../components/policia/PopupAlerta.vue'
+import ModalDictamenAlerta from '../components/policia/ModalDictamenAlerta.vue'
 
 const router = useRouter()
 const mapContainer = ref(null)
@@ -24,6 +25,8 @@ const cargando = ref(true)
 
 // Referencia a la alerta seleccionada actualmente para abrir el Popup personalizado
 const alertaActiva = ref(null)
+// Referencia a la alerta para abrir el modal de informe/dictamen de finalización
+const alertaParaDictamen = ref(null)
 
 let marcadoresBasesMap = {}
 let marcadoresAlertasMap = {}
@@ -330,9 +333,21 @@ const handleActualizarEstado = async ({ id, nuevoEstado }) => {
   if (resultado.success) {
     toast.success(`Estado actualizado a: ${nuevoEstado}`)
     await cargarDatos()
+    if (alertaActiva.value && String(alertaActiva.value.id) === String(id)) {
+      const actualizada = alertas.value.find((a) => String(a.id) === String(id))
+      if (actualizada) alertaActiva.value = actualizada
+    }
   } else {
     toast.error('No se pudo actualizar el estado en la base de datos.')
   }
+}
+
+const handleAbrirModalDictamen = (alerta) => {
+  if (!alerta || alerta.estado_actual !== '5.50 - PROCEDIMIENTO FINALIZADO') {
+    toast.warning('Solo puedes generar el informe cuando el estado sea 5.50 - PROCEDIMIENTO FINALIZADO.')
+    return
+  }
+  alertaParaDictamen.value = alerta
 }
 
 onMounted(async () => {
@@ -443,8 +458,16 @@ const handleBack = async () => {
           :alerta="alertaActiva"
           @cerrar="alertaActiva = null"
           @actualizarEstado="handleActualizarEstado"
+          @generarInforme="handleAbrirModalDictamen"
         />
       </div>
+
+      <ModalDictamenAlerta
+        v-if="alertaParaDictamen"
+        :alerta="alertaParaDictamen"
+        :cuadrante-nombre="infoCuadranteOperador?.nombre || ''"
+        @cerrar="alertaParaDictamen = null"
+      />
     </main>
   </div>
 </template>

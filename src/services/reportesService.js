@@ -108,5 +108,55 @@ export const reportesService = {
       console.error('Error al actualizar el estado de la alerta:', error.message)
       return { success: false, error: error.message }
     }
+  },
+
+  async obtenerDictamenPorAlerta(alertaId) {
+    try {
+      if (!alertaId) return { data: null, error: null }
+
+      const { data, error } = await supabase
+        .from('alerta_dictamenes')
+        .select('*')
+        .eq('alerta_id', alertaId)
+        .maybeSingle()
+
+      if (error) throw error
+      return { data, error: null }
+    } catch (error) {
+      console.error('Error al obtener dictamen de alerta:', error.message)
+      return { data: null, error }
+    }
+  },
+
+  async guardarDictamenAlerta({
+    alertaId,
+    operadorDocumento,
+    patrullaResponsable,
+    detallesProcedimiento,
+    codigoPolicia = null,
+    pdfDictamenUrl = null
+  }) {
+    const payload = {
+      alerta_id: alertaId,
+      operador_documento: String(operadorDocumento).trim(),
+      patrulla_responsable: String(patrullaResponsable).trim(),
+      detalles_procedimiento: String(detallesProcedimiento).trim(),
+      codigo_policia: codigoPolicia ? String(codigoPolicia).trim() : null,
+      pdf_dictamen_url: pdfDictamenUrl || null,
+      fecha_cierre: new Date().toISOString()
+    }
+
+    const { data, error } = await supabase
+      .from('alerta_dictamenes')
+      .upsert(payload, { onConflict: 'alerta_id' })
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Error al guardar en alerta_dictamenes:', error.message)
+      throw error
+    }
+
+    return data
   }
 }
