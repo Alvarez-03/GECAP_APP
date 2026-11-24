@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '../services/supabase'
 import { toast } from 'vue3-toastify'
+import {PERMISOS_POR_MODULO,tienePermisoPorRol,obtenerOperadorLocalStorage} from '../utils/permisosOperador'
 
 import index from '../views/index.vue'
 import registercitizen from '../views/registerCiudadano.vue'
@@ -92,13 +93,17 @@ const routes = [
   {
     path: '/policia/login',
     name: 'login-policia',
-    component: LoginOperadorView,
+    component: LoginOperadorView
   },
   {
     path: '/policia/mapa',
     name: 'mapa-policia',
     component: MapaOperadorView,
-    meta: { requiresAuth: true, requiresOperator: true }
+    meta: {
+      requiresAuth: true,
+      requiresOperator: true,
+      allowedRoles: PERMISOS_POR_MODULO.mapa
+    }
   },
   {
     path: '/policia/MenuPrincipal',
@@ -110,31 +115,51 @@ const routes = [
     path: '/policia/operadores',
     name: 'GestionOPeradores',
     component: GestionOperadoresView,
-    meta: { requiresAuth: true, requiresOperator: true }
+    meta: {
+      requiresAuth: true,
+      requiresOperator: true,
+      allowedRoles: PERMISOS_POR_MODULO.operadores
+    }
   },
   {
     path: '/policia/ciudadanos',
     name: 'GestionCiudadanos',
     component: GestionCiudadanosView,
-    meta: { requiresAuth: true, requiresOperator: true }
+    meta: {
+      requiresAuth: true,
+      requiresOperator: true,
+      allowedRoles: PERMISOS_POR_MODULO.usuarios
+    }
   },
   {
     path: '/policia/AlertasReporte',
     name: 'AlertasReporte',
     component: GestionAlertasOperador,
-    meta: { requiresAuth: true, requiresOperator: true }
+    meta: {
+      requiresAuth: true,
+      requiresOperator: true,
+      allowedRoles: PERMISOS_POR_MODULO.despacho
+    }
   },
   {
     path: '/policia/cuadrantes',
     name: 'GestionCuadrantes',
     component: GestionCuadrantesView,
-    meta: { requiresAuth: true, requiresOperator: true }
+    meta: {
+      requiresAuth: true,
+      requiresOperator: true,
+      allowedRoles: PERMISOS_POR_MODULO.cuadrantes
+    }
   },
   {
     path: '/policia/dashboard-bi',
     name: 'DashboardBi',
     component: MetricsView,
-    meta: { requiresAuth: true, requiresOperator: true }
+    meta: {
+      requiresAuth: true,
+      requiresOperator: true,
+      allowedRoles: PERMISOS_POR_MODULO.estadisticas
+    }
   }
 ]
 
@@ -143,12 +168,12 @@ const router = createRouter({
   routes
 })
 
-// GUARD DE NAVEGACIÓN GLOBAL (CIUDADANOS Y OPERADORES)
 router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresOperator = to.matched.some(record => record.meta.requiresOperator)
+  const allowedRolesRecord = to.matched.find(record => Array.isArray(record.meta.allowedRoles))
+  const allowedRoles = allowedRolesRecord?.meta?.allowedRoles || null
 
-  // 1. Si la ruta es pública, permitir acceso sin restricciones
   if (!requiresAuth) {
     return next()
   }
@@ -156,7 +181,7 @@ router.beforeEach(async (to, from, next) => {
   try {
     const { data: { session } } = await supabase.auth.getSession()
 
-    // 2. Si es una ruta protegida para OPERADORES POLICIALES
+    // 1. Validar primero que sea OPERADOR
     if (requiresOperator) {
       if (!session) {
         toast.warning('Acceso restringido. Debes iniciar sesión como operador.', {
@@ -166,14 +191,13 @@ router.beforeEach(async (to, from, next) => {
         return next({ name: 'login-policia' })
       }
 
-      // Validar si el usuario autenticado está registrado en la tabla 'operadores'
-      const { data: operador, error } = await supabase
+      const { data: operadorDb, error } = await supabase
         .from('operador_cuadrantes')
-        .select('id')
+        .select('id, rol')
         .eq('user_id', session.user.id)
         .maybeSingle()
 
-      if (error || !operador) {
+      if (error || !operadorDb) {
         await supabase.auth.signOut()
         localStorage.removeItem('operador_gecap')
         toast.error('Cuenta no autorizada para el módulo operativo.', {
@@ -183,25 +207,37 @@ router.beforeEach(async (to, from, next) => {
         return next({ name: 'login-policia' })
       }
 
+      // 2. Si ya se validó que es operador, validar su ROL (`OPERADOR`, `SUPERVISOR`, `ADMIN`)
+      const operadorLocal = obtenerOperadorLocalStorage()
+      const rolEfectivo = operadorDb.rol || operadorLocal?.rol || ''
+
+      if (allowedRoles && !tienePermisoPorRol(rolEfectivo, allowedRoles)) {
+        toast.error('Tu rol no tiene permiso para ingresar a esta ruta.', {
+          position: 'top-center',
+          theme: 'dark'
+        })
+        if (to.name !== 'MenuPrincipal-policia') {
+          return next({ name: 'MenuPrincipal-policia' })
+        }
+        return next(false)
+      }
+
       return next()
     }
 
-    // 3. Si es una ruta protegida para CIUDADANOS
+    // 3. Rutas protegidas para CIUDADANOS
     const usuarioLocal = localStorage.getItem('ciudadano_gecap')
 
     if (!session || !usuarioLocal) {
       localStorage.removeItem('ciudadano_gecap')
-      
       toast.warning('Tu sesión ha expirado o no estás autenticado.', {
         position: 'top-center',
         theme: 'dark'
       })
-
       return next({ name: 'login' })
     }
 
     return next()
-
   } catch (error) {
     console.error('Error al validar la sesión:', error)
     toast.error('Error de autenticación. Inicia sesión nuevamente.', {
@@ -215,4 +251,5 @@ router.beforeEach(async (to, from, next) => {
     return next({ name: 'login' })
   }
 })
+
 export default router
