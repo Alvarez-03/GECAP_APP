@@ -14,6 +14,10 @@ const props = defineProps({
   cuadranteNombre: {
     type: String,
     default: ''
+  },
+  soloLectura: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -43,69 +47,77 @@ const formatearHoraReporte = (alertaObj) => {
   })
 }
 
-const operadorLocal = obtenerOperadorGuardado()
-
-const form = ref({
-  operadorDocumento: operadorLocal?.placa_identificacion || '',
-  patrullaResponsable: props.alerta?.unidad_cuadrante || props.cuadranteNombre || '',
-  codigoPolicia: '',
-  ciudadMunicipio: 'Guadalajara de Buga, Valle del Cauca',
-  fecha: new Date().toLocaleDateString('es-CO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }),
-  horaInicio: formatearHoraReporte(props.alerta),
-  horaFinalizacion: new Date().toLocaleTimeString('es-CO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }),
-  unidadTexto: props.cuadranteNombre || props.alerta?.unidad_cuadrante || '',
-  numeroRadicado: props.alerta?.codigo_seguimiento || '',
-  direccionExacta:
-    props.alerta?.latitud != null && props.alerta?.longitud != null
-      ? `Lat: ${props.alerta.latitud}, Lng: ${props.alerta.longitud}`
+const crearFormularioBase = (alertaObj = props.alerta, operadorObj = obtenerOperadorGuardado()) => {
+  const ahora = new Date()
+  return {
+    operadorDocumento: operadorObj?.placa_identificacion || '',
+    patrullaResponsable: alertaObj?.unidad_cuadrante || props.cuadranteNombre || '',
+    codigoPolicia: '',
+    ciudadMunicipio: 'Guadalajara de Buga, Valle del Cauca',
+    fecha: ahora.toLocaleDateString('es-CO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }),
+    horaInicio: formatearHoraReporte(alertaObj),
+    horaFinalizacion: ahora.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }),
+    unidadTexto: props.cuadranteNombre || alertaObj?.unidad_cuadrante || '',
+    numeroRadicado: alertaObj?.codigo_seguimiento || '',
+    direccionExacta:
+      alertaObj?.latitud != null && alertaObj?.longitud != null
+        ? `Lat: ${alertaObj.latitud}, Lng: ${alertaObj.longitud}`
+        : '',
+    jefePatrulla: operadorObj?.nombre_completo
+      ? `${operadorObj.rango ? `${operadorObj.rango} ` : ''}${operadorObj.nombre_completo} – Placa / ID: ${operadorObj.placa_identificacion || ''}`
       : '',
-  jefePatrulla: operadorLocal?.nombre_completo
-    ? `${operadorLocal.rango ? `${operadorLocal.rango} ` : ''}${operadorLocal.nombre_completo} – Placa / ID: ${operadorLocal.placa_identificacion || ''}`
-    : '',
-  acompanante: '',
-  medioTransporte: '',
-  origenRequerimiento: 'Línea 123 / GECAP',
-  motivoInicial: props.alerta?.tipo_alerta || '',
-  calidadPersona: 'Requirente',
-  nombrePersona: props.alerta?.nombre_ciudadano || '',
-  documentoPersona: props.alerta?.ciudadano_documento || '',
-  edadPersona: '',
-  direccionPersona: '',
-  telefonoPersona: '',
-  llegadaLugar: '',
-  desarrolloIntervencion: '',
-  actuacionesMedidas: '',
-  elementosIncautados: 'No aplica',
-  estadoCaso: 'Caso cerrado',
-  novedadesProcedimiento: 'Sin novedad',
-  firma1Nombre: operadorLocal?.nombre_completo
-    ? `${operadorLocal.rango ? `${operadorLocal.rango} ` : ''}${operadorLocal.nombre_completo}`
-    : '',
-  firma1Id: operadorLocal?.placa_identificacion
-    ? `Placa / C.C. N.° ${operadorLocal.placa_identificacion}`
-    : '',
-  firma1Cargo: operadorLocal?.rol || 'Operador GECAP',
-  firma2Nombre: '',
-  firma2Id: '',
-  firma2Cargo: ''
-})
+    acompanante: '',
+    medioTransporte: '',
+    origenRequerimiento: 'Línea 123 / GECAP',
+    motivoInicial: alertaObj?.tipo_alerta || '',
+    calidadPersona: 'Requirente',
+    nombrePersona: alertaObj?.nombre_ciudadano || '',
+    documentoPersona: alertaObj?.ciudadano_documento || '',
+    edadPersona: '',
+    direccionPersona: '',
+    telefonoPersona: '',
+    llegadaLugar: '',
+    desarrolloIntervencion: '',
+    actuacionesMedidas: '',
+    elementosIncautados: 'No aplica',
+    estadoCaso: 'Caso cerrado',
+    novedadesProcedimiento: 'Sin novedad',
+    firma1Nombre: operadorObj?.nombre_completo
+      ? `${operadorObj.rango ? `${operadorObj.rango} ` : ''}${operadorObj.nombre_completo}`
+      : '',
+    firma1Id: operadorObj?.placa_identificacion
+      ? `Placa / C.C. N.° ${operadorObj.placa_identificacion}`
+      : '',
+    firma1Cargo: operadorObj?.rol || 'Operador GECAP',
+    firma2Nombre: '',
+    firma2Id: '',
+    firma2Cargo: ''
+  }
+}
 
+const form = ref(crearFormularioBase())
 const detallesProcedimiento = ref('')
 
 const regenerarPlantilla = () => {
+  if (props.soloLectura) return
+  const operadorActual = obtenerOperadorGuardado()
+  const datosCompletos = {
+    ...crearFormularioBase(props.alerta, operadorActual),
+    ...form.value
+  }
   detallesProcedimiento.value = construirTextoDictamenPolicial({
     alerta: props.alerta,
-    operador: operadorLocal,
+    operador: operadorActual,
     cuadranteNombre: props.cuadranteNombre,
-    datosAdicionales: form.value
+    datosAdicionales: datosCompletos
   })
 }
 
@@ -114,31 +126,55 @@ watch(
   async (nueva) => {
     if (!nueva) return
     const operadorActual = obtenerOperadorGuardado()
-    form.value.operadorDocumento = operadorActual?.placa_identificacion || ''
-    form.value.horaInicio = formatearHoraReporte(nueva)
-    form.value.patrullaResponsable = nueva.unidad_cuadrante || props.cuadranteNombre || ''
-    form.value.unidadTexto = props.cuadranteNombre || nueva.unidad_cuadrante || ''
-    form.value.numeroRadicado = nueva.codigo_seguimiento || ''
-    form.value.direccionExacta =
-      nueva.latitud != null && nueva.longitud != null
-        ? `Lat: ${nueva.latitud}, Lng: ${nueva.longitud}`
-        : ''
-    form.value.motivoInicial = nueva.tipo_alerta || ''
-    form.value.nombrePersona = nueva.nombre_ciudadano || ''
-    form.value.documentoPersona = nueva.ciudadano_documento || ''
+    form.value = crearFormularioBase(nueva, operadorActual)
 
-    regenerarPlantilla()
+    if (!props.soloLectura) {
+      regenerarPlantilla()
+    } else {
+      detallesProcedimiento.value = ''
+    }
 
     cargandoExistente.value = true
     const { data } = await reportesService.obtenerDictamenPorAlerta(nueva.id)
     if (data) {
-      form.value.operadorDocumento =
-        data.operador_documento || form.value.operadorDocumento
-      form.value.patrullaResponsable =
-        data.patrulla_responsable || form.value.patrullaResponsable
-      form.value.codigoPolicia = data.codigo_policia || ''
-      detallesProcedimiento.value =
-        data.detalles_procedimiento || detallesProcedimiento.value
+      form.value = {
+        ...form.value,
+        operadorDocumento: data.operador_documento ?? form.value.operadorDocumento,
+        patrullaResponsable: data.patrulla_responsable ?? form.value.patrullaResponsable,
+        codigoPolicia: data.codigo_policia ?? '',
+        ciudadMunicipio: data.ciudad_municipio ?? form.value.ciudadMunicipio,
+        fecha: data.fecha_reporte ?? form.value.fecha,
+        horaInicio: data.hora_inicio ?? form.value.horaInicio,
+        horaFinalizacion: data.hora_finalizacion ?? form.value.horaFinalizacion,
+        unidadTexto: data.unidad_texto ?? form.value.unidadTexto,
+        numeroRadicado: data.numero_radicado ?? form.value.numeroRadicado,
+        direccionExacta: data.direccion_exacta ?? form.value.direccionExacta,
+        jefePatrulla: data.jefe_patrulla ?? form.value.jefePatrulla,
+        acompanante: data.acompanante ?? '',
+        medioTransporte: data.medio_transporte ?? '',
+        origenRequerimiento: data.origen_requerimiento ?? form.value.origenRequerimiento,
+        motivoInicial: data.motivo_inicial ?? form.value.motivoInicial,
+        calidadPersona: data.calidad_persona ?? form.value.calidadPersona,
+        nombrePersona: data.nombre_persona ?? form.value.nombrePersona,
+        documentoPersona: data.documento_persona ?? form.value.documentoPersona,
+        edadPersona: data.edad_persona ?? '',
+        direccionPersona: data.direccion_persona ?? '',
+        telefonoPersona: data.telefono_persona ?? '',
+        llegadaLugar: data.llegada_lugar ?? '',
+        desarrolloIntervencion: data.desarrollo_intervencion ?? '',
+        actuacionesMedidas: data.actuaciones_medidas ?? '',
+        elementosIncautados: data.elementos_incautados ?? form.value.elementosIncautados,
+        estadoCaso: data.estado_caso ?? form.value.estadoCaso,
+        novedadesProcedimiento: data.novedades_procedimiento ?? form.value.novedadesProcedimiento,
+        firma1Nombre: data.firma1_nombre ?? form.value.firma1Nombre,
+        firma1Id: data.firma1_id ?? form.value.firma1Id,
+        firma1Cargo: data.firma1_cargo ?? form.value.firma1Cargo,
+        firma2Nombre: data.firma2_nombre ?? '',
+        firma2Id: data.firma2_id ?? '',
+        firma2Cargo: data.firma2_cargo ?? ''
+      }
+
+      detallesProcedimiento.value = data.detalles_procedimiento || detallesProcedimiento.value
     }
     cargandoExistente.value = false
   },
@@ -146,23 +182,24 @@ watch(
 )
 
 onMounted(() => {
-  if (!detallesProcedimiento.value) {
+  if (!props.soloLectura && !detallesProcedimiento.value) {
     regenerarPlantilla()
   }
 })
 
 const handleDescargarPdf = () => {
-  if (!detallesProcedimiento.value.trim()) {
-    toast.warning('El texto del dictamen está vacío; complétalo antes de exportar el PDF.')
-    return
-  }
-
   try {
+    const datosCompletos = {
+      ...crearFormularioBase(props.alerta),
+      ...form.value
+    }
     exportarDictamenPolicialPdf({
       alerta: props.alerta,
-      operadorDocumento: form.value.operadorDocumento.trim(),
-      patrullaResponsable: form.value.patrullaResponsable.trim(),
-      codigoPolicia: form.value.codigoPolicia.trim(),
+      operadorDocumento: datosCompletos.operadorDocumento.trim(),
+      patrullaResponsable: datosCompletos.patrullaResponsable.trim(),
+      codigoPolicia: datosCompletos.codigoPolicia.trim(),
+      cuadranteNombre: props.cuadranteNombre,
+      form: datosCompletos,
       detallesProcedimiento: detallesProcedimiento.value.trim()
     })
     toast.success('PDF del dictamen descargado correctamente.')
@@ -173,11 +210,18 @@ const handleDescargarPdf = () => {
 }
 
 const handleGuardar = async () => {
-  if (!form.value.operadorDocumento.trim()) {
+  if (props.soloLectura) return
+
+  const datosCompletos = {
+    ...crearFormularioBase(props.alerta),
+    ...form.value
+  }
+
+  if (!datosCompletos.operadorDocumento.trim()) {
     toast.warning('Ingresa el número de identificación del operador.')
     return
   }
-  if (!form.value.patrullaResponsable.trim()) {
+  if (!datosCompletos.patrullaResponsable.trim()) {
     toast.warning('Ingresa la patrulla responsable.')
     return
   }
@@ -190,10 +234,11 @@ const handleGuardar = async () => {
     guardando.value = true
     const dictamen = await reportesService.guardarDictamenAlerta({
       alertaId: props.alerta.id,
-      operadorDocumento: form.value.operadorDocumento.trim(),
-      patrullaResponsable: form.value.patrullaResponsable.trim(),
+      operadorDocumento: datosCompletos.operadorDocumento.trim(),
+      patrullaResponsable: datosCompletos.patrullaResponsable.trim(),
       detallesProcedimiento: detallesProcedimiento.value.trim(),
-      codigoPolicia: form.value.codigoPolicia.trim() || null
+      codigoPolicia: datosCompletos.codigoPolicia?.trim() || null,
+      datosFormulario: datosCompletos
     })
     toast.success('Informe de finalización guardado en alerta_dictamenes.')
     emit('guardado', dictamen)
@@ -216,7 +261,7 @@ const handleGuardar = async () => {
           <FileCheck2 class="w-5 h-5 text-emerald-400" />
           <div>
             <h2 class="text-sm font-black uppercase tracking-wider">
-              Generar Informe de Finalización de Procedimiento
+              {{ soloLectura ? 'Informe de Finalización de Procedimiento (Solo Lectura)' : 'Generar Informe de Finalización de Procedimiento' }}
             </h2>
             <p class="text-[11px] text-slate-400">
               Radicado #{{ alerta.codigo_seguimiento || alerta.id }} • {{ alerta.estado_actual }}
@@ -235,7 +280,7 @@ const handleGuardar = async () => {
       <div class="p-5 overflow-y-auto space-y-5 text-xs">
         <div v-if="cargandoExistente" class="flex items-center gap-2 text-slate-500 font-semibold">
           <Loader2 class="w-4 h-4 animate-spin" />
-          <span>Verificando dictamen previo...</span>
+          <span>Cargando dictamen registrado...</span>
         </div>
 
         <!-- CAMPOS PRINCIPALES DE REGISTRO -->
@@ -245,8 +290,9 @@ const handleGuardar = async () => {
             <input
               v-model="form.operadorDocumento"
               type="text"
+              :disabled="soloLectura"
               placeholder="Placa / Identificación"
-              class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-slate-900"
+              class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 disabled:bg-slate-100 disabled:text-slate-600 focus:outline-none focus:border-slate-900"
             />
           </div>
           <div>
@@ -254,8 +300,9 @@ const handleGuardar = async () => {
             <input
               v-model="form.patrullaResponsable"
               type="text"
+              :disabled="soloLectura"
               placeholder="Ej. Patrulla Cuadrante 01"
-              class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-slate-900"
+              class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 disabled:bg-slate-100 disabled:text-slate-600 focus:outline-none focus:border-slate-900"
             />
           </div>
           <div>
@@ -263,8 +310,9 @@ const handleGuardar = async () => {
             <input
               v-model="form.codigoPolicia"
               type="text"
+              :disabled="soloLectura"
               placeholder="Ej. Ley 1801 Art. 27 Num. 1"
-              class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-slate-900"
+              class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 disabled:bg-slate-100 disabled:text-slate-600 focus:outline-none focus:border-slate-900"
             />
           </div>
         </div>
@@ -275,27 +323,27 @@ const handleGuardar = async () => {
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Ciudad / Municipio y Depto.</label>
-              <input v-model="form.ciudadMunicipio" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.ciudadMunicipio" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Hora inicio (llegada reporte)</label>
-              <input v-model="form.horaInicio" type="text" placeholder="HH:MM" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.horaInicio" type="text" :disabled="soloLectura" placeholder="HH:MM" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Hora finalización</label>
-              <input v-model="form.horaFinalizacion" type="text" placeholder="HH:MM" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.horaFinalizacion" type="text" :disabled="soloLectura" placeholder="HH:MM" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Unidad / Estación / CAI / Cuadrante</label>
-              <input v-model="form.unidadTexto" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.unidadTexto" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">N.° caso / Radicado / SECAD / 123</label>
-              <input v-model="form.numeroRadicado" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.numeroRadicado" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Dirección exacta</label>
-              <input v-model="form.direccionExacta" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.direccionExacta" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
           </div>
         </div>
@@ -306,19 +354,19 @@ const handleGuardar = async () => {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Jefe de patrulla (Grado, Nombre, Placa)</label>
-              <input v-model="form.jefePatrulla" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.jefePatrulla" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Acompañante (Grado, Nombre, Placa)</label>
-              <input v-model="form.acompanante" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.acompanante" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Sigla vehículo / Medio transporte</label>
-              <input v-model="form.medioTransporte" type="text" placeholder="Ej. Motocicleta, Panel, A pie" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.medioTransporte" type="text" :disabled="soloLectura" placeholder="Ej. Motocicleta, Panel, A pie" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Origen del requerimiento</label>
-              <input v-model="form.origenRequerimiento" type="text" placeholder="Línea 123 / Central de radio..." class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.origenRequerimiento" type="text" :disabled="soloLectura" placeholder="Línea 123 / Central de radio..." class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
           </div>
         </div>
@@ -329,27 +377,27 @@ const handleGuardar = async () => {
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Calidad en el procedimiento</label>
-              <input v-model="form.calidadPersona" type="text" placeholder="Requirente / Afectado / Testigo..." class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.calidadPersona" type="text" :disabled="soloLectura" placeholder="Requirente / Afectado / Testigo..." class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Nombres y apellidos</label>
-              <input v-model="form.nombrePersona" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.nombrePersona" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Tipo y número de documento</label>
-              <input v-model="form.documentoPersona" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.documentoPersona" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Edad / Fecha nacimiento</label>
-              <input v-model="form.edadPersona" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.edadPersona" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Dirección de residencia</label>
-              <input v-model="form.direccionPersona" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.direccionPersona" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Teléfono de contacto</label>
-              <input v-model="form.telefonoPersona" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <input v-model="form.telefonoPersona" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
             </div>
           </div>
         </div>
@@ -360,39 +408,40 @@ const handleGuardar = async () => {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Llegada al lugar</label>
-              <textarea v-model="form.llegadaLugar" rows="2" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5"></textarea>
+              <textarea v-model="form.llegadaLugar" rows="2" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600"></textarea>
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Desarrollo de la intervención</label>
-              <textarea v-model="form.desarrolloIntervencion" rows="2" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5"></textarea>
+              <textarea v-model="form.desarrolloIntervencion" rows="2" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600"></textarea>
             </div>
             <div>
               <label class="block font-semibold text-slate-600 mb-1">Actuaciones y medidas aplicadas</label>
-              <textarea v-model="form.actuacionesMedidas" rows="3" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5"></textarea>
+              <textarea v-model="form.actuacionesMedidas" rows="3" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600"></textarea>
             </div>
             <div class="space-y-2">
               <div>
                 <label class="block font-semibold text-slate-600 mb-1">Elementos incautados / recuperados</label>
-                <input v-model="form.elementosIncautados" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+                <input v-model="form.elementosIncautados" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
               </div>
               <div>
                 <label class="block font-semibold text-slate-600 mb-1">Estado final del caso</label>
-                <input v-model="form.estadoCaso" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+                <input v-model="form.estadoCaso" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
               </div>
             </div>
           </div>
           <div>
             <label class="block font-semibold text-slate-600 mb-1">Novedades durante el procedimiento</label>
-            <input v-model="form.novedadesProcedimiento" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+            <input v-model="form.novedadesProcedimiento" type="text" :disabled="soloLectura" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 disabled:bg-slate-100 disabled:text-slate-600" />
           </div>
         </div>
 
         <!-- BOTÓN PARA VOLCAR CAMPOS AL TEXTO COMPLETO -->
         <div class="flex items-center justify-between">
           <span class="font-bold text-slate-700 uppercase">
-            Informe Final Completo (se guardará en alerta_dictamenes.detalles_procedimiento) *
+            Informe Final Completo (alerta_dictamenes.detalles_procedimiento)
           </span>
           <button
+            v-if="!soloLectura"
             type="button"
             @click="regenerarPlantilla"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-300 transition cursor-pointer"
@@ -405,7 +454,8 @@ const handleGuardar = async () => {
         <textarea
           v-model="detallesProcedimiento"
           rows="14"
-          class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-mono text-[11px] leading-relaxed text-slate-800 focus:outline-none focus:border-slate-900"
+          :readonly="soloLectura"
+          class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-mono text-[11px] leading-relaxed text-slate-800 read-only:bg-slate-100 read-only:text-slate-700 focus:outline-none focus:border-slate-900"
         ></textarea>
       </div>
 
@@ -427,9 +477,10 @@ const handleGuardar = async () => {
             :disabled="guardando"
             class="px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
           >
-            Cancelar
+            {{ soloLectura ? 'Cerrar' : 'Cancelar' }}
           </button>
           <button
+            v-if="!soloLectura"
             type="button"
             @click="handleGuardar"
             :disabled="guardando"

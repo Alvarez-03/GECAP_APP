@@ -1,11 +1,15 @@
 <script setup>
-import { User, Clock, MapPin, Video, FileText } from 'lucide-vue-next'
+import { User, Clock, MapPin, Video, FileText, FileCheck2 } from 'lucide-vue-next'
 
 defineProps({
-  alerta: Object
+  alerta: Object,
+  tieneDictamen: {
+    type: Boolean,
+    default: false
+  }
 })
 
-defineEmits(['verEvidencias', 'verInforme'])
+defineEmits(['verEvidencias', 'verInforme', 'verDictamen'])
 
 const formatearFecha = (fechaStr) => {
   if (!fechaStr) return 'N/A'
@@ -25,7 +29,7 @@ const formatearFecha = (fechaStr) => {
     
     <!-- Cabecera de la Tarjeta -->
     <div class="space-y-1.5">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-2">
         <span class="text-[10px] font-black tracking-widest px-2.5 py-1 bg-slate-100 text-red-600 rounded-lg uppercase border border-slate-200">
           #{{ alerta.codigo_seguimiento || 'S/N' }}
         </span>
@@ -56,21 +60,32 @@ const formatearFecha = (fechaStr) => {
     </div>
 
     <!-- Botones de Acción -->
-    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-      <button 
-        @click="$emit('verEvidencias', alerta)"
-        class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-slate-200"
-      >
-        <Video class="w-4 h-4 text-red-600" />
-        Evidencias ({{ alerta.alerta_fotos?.length || 0 }})
-      </button>
+    <div class="space-y-2 pt-2 border-t border-slate-100">
+      <div class="grid grid-cols-2 gap-2">
+        <button 
+          @click="$emit('verEvidencias', alerta)"
+          class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-slate-200"
+        >
+          <Video class="w-4 h-4 text-red-600" />
+          Evidencias ({{ alerta.alerta_fotos?.length || 0 }})
+        </button>
 
-      <button 
-        @click="$emit('verInforme', alerta)"
-        class="px-3 py-2 bg-gecap-darkblue hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm"
+        <button 
+          @click="$emit('verInforme', alerta)"
+          class="px-3 py-2 bg-gecap-darkblue hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm"
+        >
+          <FileText class="w-4 h-4" />
+          Ver Detalle
+        </button>
+      </div>
+
+      <button
+        v-if="tieneDictamen"
+        @click="$emit('verDictamen', alerta)"
+        class="w-full px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm"
       >
-        <FileText class="w-4 h-4" />
-        Ver Detalle
+        <FileCheck2 class="w-4 h-4" />
+        Ver Informe y PDF
       </button>
     </div>
 

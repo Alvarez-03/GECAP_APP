@@ -5,6 +5,8 @@ import { ShieldAlert, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-vue-ne
 import { supabase } from '../services/supabase'
 import { tiposReportesService } from '../services/tiposReportesService'
 import { toast } from 'vue3-toastify'
+import { reportesService } from '../services/reportesService'
+
 
 // Importar subcomponentes modulares
 import SidebarFiltros from '../components/policia/SidebarFiltros.vue'
@@ -12,6 +14,7 @@ import ChipsFiltrosActivos from '../components/policia/ChipsFiltrosActivos.vue'
 import TarjetaAlerta from '../components/policia/TarjetaAlerta.vue'
 import ModalEvidencias from '../components/ModalEvidencias.vue'
 import ModalInforme from '../components/ModalInforme.vue'
+import ModalDictamenAlerta from '../components/policia/ModalDictamenAlerta.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -20,6 +23,7 @@ const alertas = ref([])
 const tiposReportesDB = ref([])
 const cargando = ref(true)
 const actualizandoFiltro = ref(false)
+const alertaDictamenSeleccionada = ref(null)
 
 // Filtros y Paginación sincronizados con URL Query Params
 const busquedaTexto = ref(route.query.busqueda || '')
@@ -53,15 +57,27 @@ const opcionesEvidencia = [
   { id: 'SIN', label: 'Sin evidencias' }
 ]
 
+const alertasConDictamenIds = ref(new Set())
+
 const cargarDatosIniciales = async () => {
   try {
     cargando.value = true
-    const [resAlertas, resTipos] = await Promise.all([
-      supabase.from('alertas').select('*, alerta_fotos(url_foto)').order('created_at', { ascending: false }),
+    const [resAlertas, resDictamenes, resTipos] = await Promise.all([
+      supabase
+        .from('alertas')
+        .select('*, alerta_fotos(url_foto)')
+        .order('created_at', { ascending: false }),
+      reportesService.obtenerTodosLosDictamenes(),
       tiposReportesService.obtenerTodos(true)
     ])
     if (resAlertas.error) throw resAlertas.error
+
     alertas.value = resAlertas.data || []
+    alertasConDictamenIds.value = new Set(
+      (resDictamenes.dictamenes || [])
+        .map((d) => d.alerta_id)
+        .filter(Boolean)
+    )
     tiposReportesDB.value = resTipos || []
   } catch (error) {
     console.error(error)
@@ -71,6 +87,9 @@ const cargarDatosIniciales = async () => {
   }
 }
 
+const alertaTieneDictamen = (alerta) => {
+  return alertasConDictamenIds.value.has(alerta?.id)
+}
 onMounted(() => { cargarDatosIniciales() })
 
 const actualizarParametrosURL = () => {
@@ -187,6 +206,10 @@ const verInforme = (alerta) => {
   reporteSeleccionado.value = alerta
   mostrarModalInforme.value = true
 }
+
+const verDictamen = (alerta) => {
+  alertaDictamenSeleccionada.value = alerta
+}
 </script>
 
 <template>
@@ -276,8 +299,10 @@ const verInforme = (alerta) => {
               v-for="alerta in alertasPaginadas" 
               :key="alerta.id" 
               :alerta="alerta"
+              :tiene-dictamen="alertaTieneDictamen(alerta)"
               @verEvidencias="abrirEvidencias"
               @verInforme="verInforme"
+              @verDictamen="verDictamen"
             />
           </div>
         </div>
@@ -312,6 +337,12 @@ const verInforme = (alerta) => {
     <!-- MODALES -->
     <ModalEvidencias v-model="mostrarModalEvidencia" :evidencias="evidenciasSeleccionadas" :codigoSeguimiento="codigoActual" />
     <ModalInforme v-model="mostrarModalInforme" :alerta="reporteSeleccionado" />
+    <ModalDictamenAlerta
+      v-if="alertaDictamenSeleccionada"
+      :alerta="alertaDictamenSeleccionada"
+      :solo-lectura="true"
+      @cerrar="alertaDictamenSeleccionada = null"
+    />
 
   </div>
 </template>

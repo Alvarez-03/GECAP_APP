@@ -110,6 +110,21 @@ export const reportesService = {
     }
   },
 
+  async obtenerTodosLosDictamenes() {
+    try {
+      const { data, error } = await supabase
+        .from('alerta_dictamenes')
+        .select('*')
+        .order('fecha_cierre', { ascending: false })
+
+      if (error) throw error
+      return { success: true, dictamenes: data || [] }
+    } catch (error) {
+      console.error('Error al obtener dictámenes:', error.message)
+      return { success: false, dictamenes: [] }
+    }
+  },
+
   async obtenerDictamenPorAlerta(alertaId) {
     try {
       if (!alertaId) return { data: null, error: null }
@@ -134,7 +149,8 @@ export const reportesService = {
     patrullaResponsable,
     detallesProcedimiento,
     codigoPolicia = null,
-    pdfDictamenUrl = null
+    pdfDictamenUrl = null,
+    datosFormulario = {}
   }) {
     const payload = {
       alerta_id: alertaId,
@@ -143,7 +159,39 @@ export const reportesService = {
       detalles_procedimiento: String(detallesProcedimiento).trim(),
       codigo_policia: codigoPolicia ? String(codigoPolicia).trim() : null,
       pdf_dictamen_url: pdfDictamenUrl || null,
-      fecha_cierre: new Date().toISOString()
+      fecha_cierre: new Date().toISOString(),
+
+      // Campos detallados del modal
+      ciudad_municipio: datosFormulario.ciudadMunicipio || null,
+      fecha_reporte: datosFormulario.fecha || null,
+      hora_inicio: datosFormulario.horaInicio || null,
+      hora_finalizacion: datosFormulario.horaFinalizacion || null,
+      unidad_texto: datosFormulario.unidadTexto || null,
+      numero_radicado: datosFormulario.numeroRadicado || null,
+      direccion_exacta: datosFormulario.direccionExacta || null,
+      jefe_patrulla: datosFormulario.jefePatrulla || null,
+      acompanante: datosFormulario.acompanante || null,
+      medio_transporte: datosFormulario.medioTransporte || null,
+      origen_requerimiento: datosFormulario.origenRequerimiento || null,
+      motivo_inicial: datosFormulario.motivoInicial || null,
+      calidad_persona: datosFormulario.calidadPersona || null,
+      nombre_persona: datosFormulario.nombrePersona || null,
+      documento_persona: datosFormulario.documentoPersona || null,
+      edad_persona: datosFormulario.edadPersona || null,
+      direccion_persona: datosFormulario.direccionPersona || null,
+      telefono_persona: datosFormulario.telefonoPersona || null,
+      llegada_lugar: datosFormulario.llegadaLugar || null,
+      desarrollo_intervencion: datosFormulario.desarrolloIntervencion || null,
+      actuaciones_medidas: datosFormulario.actuacionesMedidas || null,
+      elementos_incautados: datosFormulario.elementosIncautados || null,
+      estado_caso: datosFormulario.estadoCaso || null,
+      novedades_procedimiento: datosFormulario.novedadesProcedimiento || null,
+      firma1_nombre: datosFormulario.firma1Nombre || null,
+      firma1_id: datosFormulario.firma1Id || null,
+      firma1_cargo: datosFormulario.firma1Cargo || null,
+      firma2_nombre: datosFormulario.firma2Nombre || null,
+      firma2_id: datosFormulario.firma2Id || null,
+      firma2_cargo: datosFormulario.firma2Cargo || null
     }
 
     const { data, error } = await supabase
