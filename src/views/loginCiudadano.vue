@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { toast } from 'vue3-toastify'
-import { ChevronLeft, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-vue-next'
+import { ChevronLeft, Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/authStore'
 
 const router = useRouter()
@@ -60,183 +60,294 @@ const handleLogin = async () => {
   }
 }
 
-const irAlRegistro = () => { router.push('/registro') }
-const volver = () => { router.push('/') }
+const irAlRegistro = () => {
+  router.push('/registro')
+}
+
+const volver = () => {
+  router.push('/')
+}
 </script>
 
 <template>
-  <div class="h-dvh lg:min-h-screen bg-slate-100 flex items-center justify-center p-0 lg:p-8 font-sans overflow-hidden">
-    
-    <!-- TARJETA DE LOGIN RESPONSIVA -->
-    <div class="w-full h-full lg:h-auto lg:max-w-4xl bg-white lg:rounded-3xl shadow-2xl border-0 lg:border border-slate-200/80 overflow-hidden flex flex-col justify-between">
-      
-      <!-- GRILLA 1 COL EN MÓVIL / 2 COLS EN PC -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 lg:h-auto flex-1">
-        
-        <!-- ================================================= -->
-        <!-- COLUMNA IZQUIERDA: ESCUDO E INSIGNIA GECAP         -->
-        <!-- ================================================= -->
-        <div class="bg-gecap-darkblue text-white max-h-64 md:max-h-full p-4 sm:p-6 lg:p-10 flex flex-col justify-between items-center text-center relative shrink-0">
-          
-          <!-- Botón Volver y Header Móvil -->
-          <div class="w-full flex items-center justify-between">
-            <button 
-              @click="volver" 
-              type="button"
-              class="text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 group text-base font-semibold"
-            >
-              <ChevronLeft class="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              <span>Volver</span>
-            </button>
-            <span class="text-sm tracking-widest text-slate-400 font-black lg:hidden">
-              Portal Ciudadano
-            </span>
+  <div class="min-h-dvh lg:min-h-screen bg-slate-100 flex flex-col lg:items-center lg:justify-center lg:p-8 font-sans">
+
+    <!-- ================================================= -->
+    <!-- DISEÑO MÓVIL (< lg)                               -->
+    <!-- ================================================= -->
+    <div class="lg:hidden min-h-dvh flex flex-col bg-white">
+      <!-- Cabecera superior oscura con resplandor sutil -->
+      <div
+        class="relative bg-gecap-darkblue text-white px-5 pt-5 pb-14 flex flex-col items-center text-center overflow-hidden"
+        style="background-image: radial-gradient(circle at 50% 35%, rgba(30, 58, 138, 0.45), transparent 70%);"
+      >
+        <div class="w-full flex items-center justify-between mb-3 z-10">
+          <button
+            type="button"
+            @click="volver"
+            class="text-slate-200 hover:text-white transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+          >
+            <ChevronLeft class="w-4 h-4" />
+            <span>Volver</span>
+          </button>
+        </div>
+
+        <div class="w-28 h-28 ring-2shadow-lg flex items-center justify-center overflow-hidden mb-3">
+          <img
+            src="/LOGO_GECAP.png"
+            alt="Escudo GECAP"
+            class="w-full h-full object-contain p-1.5"
+          />
+        </div>
+
+        <h1 class="text-xl font-black tracking-wide text-white">GECAP</h1>
+        <p class="text-[11px] text-slate-300 font-medium leading-snug max-w-[230px] mt-0.5">
+          Gestión Estratégica de Cuadrantes y Atención Policial
+        </p>
+      </div>
+
+      <!-- Tarjeta blanca redondeada superpuesta -->
+      <div class="flex-1 -mt-6 bg-white rounded-t-3xl px-6 pt-7 pb-5 flex flex-col justify-between shadow-[0_-8px_24px_rgba(15,23,42,0.12)]">
+        <div class="space-y-4">
+          <div class="space-y-1">
+            <h2 class="text-xl font-black text-slate-900 leading-tight">
+              Ingresa para reportar alertas en Tuluá
+            </h2>
+            <p class="text-xs text-slate-500 font-medium">
+              Usa tu correo y contraseña para acceder.
+            </p>
           </div>
 
-          <!-- Escudo Centrado -->
-          <div class="sm:py-4 sm:space-y-3">
-            <div class="flex justify-center">
-              <div class="w-32 h-32 sm:w-28 sm:h-28 lg:w-40 lg:h-40 rounded-full p-1 bg-slate-900 flex items-center justify-center overflow-hidden transform hover:scale-105 transition-transform duration-300">
-                <img 
-                  src="/LOGO_GECAP.png" 
-                  alt="Escudo GECAP" 
-                  class="w-full h-full object-contain p-1.5"
+          <!-- Alerta de Error -->
+          <div
+            v-if="errorMessage"
+            class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs flex items-start gap-2"
+          >
+            <AlertCircle class="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+            <span>{{ errorMessage }}</span>
+          </div>
+
+          <form @submit.prevent="handleLogin" class="space-y-4">
+            <!-- Correo electrónico -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1.5">
+                Correo electrónico
+              </label>
+              <div class="relative flex items-center">
+                <Mail class="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  title="Correo electrónico"
+                  v-model="form.email"
+                  type="email"
+                  placeholder="ejemplo@correo.com"
+                  required
+                  class="w-full bg-white border border-slate-200 focus:border-slate-900 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-800 font-medium placeholder-slate-400 focus:outline-none transition-colors"
                 />
               </div>
             </div>
 
-            <div class="space-y-0.5">
-              <h1 class="text-base sm:text-lg lg:text-2xl font-black tracking-tight text-white">
-                GECAP
-              </h1>
-              <p class="text-[14px] sm:text-xs lg:text-sm text-slate-300 font-medium max-w-xs mx-auto">
-                Gestión Estratégica de Cuadrantes y Atención Policial
-              </p>
-            </div>
-          </div>
-
-          <!-- Pie Institucional en PC -->
-          <div class="hidden lg:block text-[16px] text-slate-400 font-semibold tracking-wide">
-            Policía Nacional & Alcaldía Municipal
-          </div>
-        </div>
-
-        <!-- ================================================= -->
-        <!-- COLUMNA DERECHA: FORMULARIO DE ACCESO             -->
-        <!-- ================================================= -->
-        <div class="px-5 py-4 sm:p-8 lg:p-10  overflow-y-auto">
-          
-          <!-- BLOQUE SUPERIOR Y CENTRAL: Título + Formulario -->
-          <div class="w-full space-y-3 sm:space-y-5 my-auto">
-            
-            <!-- Encabezado de Formulario -->
-            <div class="text-center lg:text-left space-y-1.5 mb-3">
-              <h2 class="text-gecap-darkblue font-black text-base tracking-wide">
-                Ingresa para generar reportes de alertas en Tuluá.
-              </h2>
-              <p class="text-[14px]  text-slate-700 font-semibold">
-                Introduce tus credenciales para acceder
-              </p>
-            </div>
-
-            <!-- Alerta de Error -->
-            <div 
-              v-if="errorMessage" 
-              class="bg-red-50 border border-red-200 text-red-700 p-2 rounded-xl text-xs flex items-center gap-2 text-left"
-            >
-              <AlertCircle class="w-4 h-4 shrink-0 text-red-600" />
-              <span>{{ errorMessage }}</span>
-            </div>
-
-            <!-- Formulario de Entrada -->
-            <form @submit.prevent="handleLogin" class="space-y-3 sm:space-y-4 text-left w-full">
-              
-              <!-- Campo: Correo Electrónico -->
-              <div>
-                <label class="block text-base font-black text-slate-800  tracking-wide mb-1">
-                  Correo Electrónico
-                </label>
-                <span class="text-xs text-slate-500 font-normal">Escribe tu correo electrónico en el siguiente campo.</span>
-                <div class="relative flex items-center border-b-2 border-slate-700 py-1 focus-within:border-red-700 transition-colors">
-                  <Mail class="w-6 h-6 sm:w-6 sm:h-6 text-slate-700 mr-2 shrink-0" />
-                  <input 
-                    title="Correo electrónico"
-                    v-model="form.email"
-                    type="email"
-                    placeholder="ejemplo@correo.com"
-                    required
-                    class="w-full bg-transparent text-slate-800 text-base font-semibold focus:outline-none placeholder-slate-400"
-                  />
-                </div>
-              </div>
-
-              <!-- Campo: Contraseña -->
-              <div>
-                <label class="block text-base font-black text-slate-800  tracking-wide mb-1">
-                  Contraseña
-                </label>
-                <span class="text-xs text-slate-500 font-normal">Escribe tu contraseña en el siguiente campo.</span>
-                <div class="relative flex items-center border-b-2 border-slate-700 py-1 focus-within:border-red-700 transition-colors">
-                  <Lock class="w-6 h-6 sm:w-6 sm:h-6 text-slate-700 mr-2 shrink-0" />
-                  <input 
-                    title="Contraseña"
-                    v-model="form.password"
-                    :type="showPassword ? 'text' : 'password'"
-                    placeholder="************"
-                    required
-                    class="w-full bg-transparent text-slate-800 text-base font-semibold focus:outline-none placeholder-slate-400 pr-8"
-                  />
-                  <button 
-                    type="button" 
-                    @click="showPassword = !showPassword"
-                    class="absolute right-0 text-slate-400 hover:text-slate-700 cursor-pointer p-1 transition-colors"
-                  >
-                    <component :is="showPassword ? EyeOff : Eye" class="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-
-              <!-- Botón Ingresar -->
-              <div class="pt-1">
-                <button 
-                  type="submit"
-                  :disabled="isSubmitting"
-                  class="w-full bg-gecap-darkblue hover:bg-gecap-darkblue/70 text-white font-black py-2.5 sm:py-3.5 px-4 rounded-xl text-base tracking-wider  shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+            <!-- Contraseña -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1.5">
+                Contraseña
+              </label>
+              <div class="relative flex items-center">
+                <Lock class="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  title="Contraseña"
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="Tu contraseña"
+                  required
+                  class="w-full bg-white border border-slate-200 focus:border-slate-900 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-800 font-medium placeholder-slate-400 focus:outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  @click="showPassword = !showPassword"
+                  class="absolute right-3 text-slate-400 hover:text-slate-700 cursor-pointer p-1 transition-colors"
                 >
-                  {{ isSubmitting ? 'INGRESANDO...' : 'INGRESAR' }}
+                  <component :is="showPassword ? EyeOff : Eye" class="w-4 h-4" />
                 </button>
               </div>
-
-            </form>
-          </div>
-
-          <!-- ENLACES INFERIORES: Pegados abajo en la pantalla -->
-          <div class="space-y-1 pt-2 sm:pt-3 border-t border-slate-100 text-center lg:text-left shrink-0 pb-1">
-            <div>
-              <button 
-                type="button" 
-                class="text-slate-600 font-bold text-[14px] sm:text-xs hover:text-slate-900 underline cursor-pointer transition-colors"
-                @click="$router.push('/olvidar-password')"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
+              <div class="flex justify-end mt-1.5">
+                <button
+                  type="button"
+                  @click="$router.push('/olvidar-password')"
+                  class="text-[11px] font-semibold text-slate-600 hover:text-slate-900 underline cursor-pointer transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
             </div>
 
-            <div>
-              <button 
-                type="button" 
-                @click="irAlRegistro"
-                class="text-gecap-darkblue font-black text-[14px] sm:text-xs underline hover:text-red-800 cursor-pointer tracking-wide transition-colors"
-              >
-                ¿Aún no estás registrado?
-              </button>
-            </div>
-          </div>
+            <!-- Botón Ingresar -->
+            <button
+              type="submit"
+              :disabled="isSubmitting"
+              class="w-full bg-blue-400 hover:bg-blue-500 text-gecap-darkblue font-black py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer disabled:opacity-50"
+            >
+              <span>{{ isSubmitting ? 'Ingresando...' : 'Ingresar' }}</span>
+              <ArrowRight v-if="!isSubmitting" class="w-4 h-4" />
+            </button>
+          </form>
 
+          <div class="pt-3 border-t border-slate-100 text-center text-xs text-slate-500">
+            <span>¿Aún no estás registrado? </span>
+            <button
+              type="button"
+              @click="irAlRegistro"
+              class="font-bold text-slate-900 underline hover:text-red-700 cursor-pointer transition-colors"
+            >
+              Regístrate
+            </button>
+          </div>
         </div>
 
+        <p class="text-[10px] text-slate-400 text-center font-medium pt-6">
+          Policía Nacional & Alcaldía Municipal
+        </p>
+      </div>
+    </div>
+
+    <!-- ================================================= -->
+    <!-- DISEÑO ESCRITORIO (>= lg)                          -->
+    <!-- ================================================= -->
+    <div class="hidden lg:grid lg:grid-cols-12 w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden min-h-[540px]">
+
+      <!-- Columna Izquierda: Marca e Insignia GECAP -->
+      <div
+        class="lg:col-span-5 bg-gecap-darkblue text-white p-8 flex flex-col justify-between relative"
+        style="background-image: radial-gradient(circle at 50% 42%, rgba(30, 58, 138, 0.45), transparent 70%);"
+      >
+        <div>
+          <button
+            type="button"
+            @click="volver"
+            class="text-slate-200 hover:text-white transition cursor-pointer inline-flex items-center gap-1 text-xs font-semibold"
+          >
+            <ChevronLeft class="w-4 h-4" />
+            <span>Volver</span>
+          </button>
+        </div>
+
+        <div class="flex flex-col items-center text-center my-auto py-4">
+          <div class="w-32 h-32 rounded-full flex items-center justify-center overflow-hidden mb-4">
+            <img
+              src="/LOGO_GECAP.png"
+              alt="Escudo GECAP"
+              class="w-full h-full object-contain p-2"
+            />
+          </div>
+          <h1 class="text-2xl font-black tracking-wide text-white">GECAP</h1>
+          <p class="text-xs text-slate-300 font-medium max-w-[220px] leading-relaxed mt-1">
+            Gestión Estratégica de Cuadrantes y Atención Policial
+          </p>
+        </div>
+
+        <div class="text-center text-[11px] text-slate-300/80 font-medium">
+          Policía Nacional & Alcaldía Municipal
+        </div>
+      </div>
+
+      <!-- Columna Derecha: Formulario -->
+      <div class="lg:col-span-7 p-10 flex flex-col justify-center">
+        <div class="w-full max-w-md mx-auto space-y-5">
+          <div class="space-y-1">
+            <h2 class="text-2xl font-black text-slate-900 leading-tight">
+              Ingresa para reportar alertas en Tuluá
+            </h2>
+            <p class="text-xs text-slate-500 font-medium">
+              Usa tu correo y contraseña para acceder.
+            </p>
+          </div>
+
+          <!-- Alerta de Error -->
+          <div
+            v-if="errorMessage"
+            class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs flex items-start gap-2"
+          >
+            <AlertCircle class="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+            <span>{{ errorMessage }}</span>
+          </div>
+
+          <form @submit.prevent="handleLogin" class="space-y-4">
+            <!-- Correo electrónico -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1.5">
+                Correo electrónico
+              </label>
+              <div class="relative flex items-center">
+                <Mail class="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  title="Correo electrónico"
+                  v-model="form.email"
+                  type="email"
+                  placeholder="ejemplo@correo.com"
+                  required
+                  class="w-full bg-white border border-slate-200 focus:border-slate-900 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-800 font-medium placeholder-slate-400 focus:outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            <!-- Contraseña -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1.5">
+                Contraseña
+              </label>
+              <div class="relative flex items-center">
+                <Lock class="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  title="Contraseña"
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="Tu contraseña"
+                  required
+                  class="w-full bg-white border border-slate-200 focus:border-slate-900 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-800 font-medium placeholder-slate-400 focus:outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  @click="showPassword = !showPassword"
+                  class="absolute right-3 text-slate-400 hover:text-slate-700 cursor-pointer p-1 transition-colors"
+                >
+                  <component :is="showPassword ? EyeOff : Eye" class="w-4 h-4" />
+                </button>
+              </div>
+              <div class="flex justify-end mt-1.5">
+                <button
+                  type="button"
+                  @click="$router.push('/olvidar-password')"
+                  class="text-[11px] font-semibold text-slate-600 hover:text-slate-900 underline cursor-pointer transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            </div>
+
+            <!-- Botón Ingresar -->
+            <button
+              type="submit"
+              :disabled="isSubmitting"
+              class="w-full bg-blue-400 hover:bg-blue-500 text-gecap-darkblue font-black py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer disabled:opacity-50"
+            >
+              <span>{{ isSubmitting ? 'Ingresando...' : 'Ingresar' }}</span>
+              <ArrowRight v-if="!isSubmitting" class="w-4 h-4" />
+            </button>
+          </form>
+
+          <div class="pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+            <span>¿Aún no estás registrado? </span>
+            <button
+              type="button"
+              @click="irAlRegistro"
+              class="font-bold text-slate-900 underline hover:text-red-700 cursor-pointer transition-colors"
+            >
+              Regístrate
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
+
   </div>
 </template>
