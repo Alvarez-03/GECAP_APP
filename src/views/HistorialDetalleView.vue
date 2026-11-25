@@ -1,12 +1,28 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Image as ImageIcon, X, ChevronLeft, ChevronRight, MapPin, FileText, Clock, ShieldCheck, AlertCircle } from 'lucide-vue-next'
+import {
+  ArrowLeft,
+  Image as ImageIcon,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  FileText,
+  Clock,
+  AlertCircle,
+  FileCheck2,
+  Eye
+} from 'lucide-vue-next'
 import { supabase } from '../services/supabase'
+import { reportesService } from '../services/reportesService'
+import ModalDictamenAlerta from '../components/policia/ModalDictamenAlerta.vue'
 
 const router = useRouter()
 const route = useRoute()
 const reporte = ref(null)
+const dictamen = ref(null)
+const mostrarModalDictamen = ref(false)
 const cargando = ref(true)
 
 // Estados para el carrusel y modal de evidencias
@@ -37,18 +53,25 @@ onMounted(async () => {
   try {
     cargando.value = true
     const reporteId = route.params.id
-    
-    const { data, error } = await supabase
-      .from('alertas')
-      .select('*, alerta_fotos(url_foto), alerta_estados(estado, created_at)')
-      .eq('id', reporteId)
-      .single()
 
-    if (!error && data) {
-      reporte.value = data
-      if (data.alerta_fotos && data.alerta_fotos.length > 0) {
-        evidenciasList.value = data.alerta_fotos.map(f => f.url_foto)
+    const [resReporte, resDictamen] = await Promise.all([
+      supabase
+        .from('alertas')
+        .select('*, alerta_fotos(url_foto), alerta_estados(estado, created_at)')
+        .eq('id', reporteId)
+        .single(),
+      reportesService.obtenerDictamenPorAlerta(reporteId)
+    ])
+
+    if (!resReporte.error && resReporte.data) {
+      reporte.value = resReporte.data
+      if (resReporte.data.alerta_fotos && resReporte.data.alerta_fotos.length > 0) {
+        evidenciasList.value = resReporte.data.alerta_fotos.map((f) => f.url_foto)
       }
+    }
+
+    if (!resDictamen.error && resDictamen.data) {
+      dictamen.value = resDictamen.data
     }
   } catch (e) {
     console.error('Error al cargar detalle:', e)
@@ -79,11 +102,11 @@ const anteriorFoto = () => {
 
 <template>
   <div class="w-full max-w-md mx-auto min-h-dvh flex flex-col bg-slate-100 font-sans pb-10">
-    
+
     <!-- ENCABEZADO SUPERIOR -->
     <div class="bg-gecap-darkblue px-4 py-5 text-white shadow-md relative flex items-center justify-center">
-      <button 
-        @click="router.push('/historial')" 
+      <button
+        @click="router.push('/historial')"
         class="absolute left-4 p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
       >
         <ArrowLeft class="w-5 h-5" />
@@ -101,7 +124,7 @@ const anteriorFoto = () => {
       </div>
 
       <template v-else-if="reporte">
-        
+
         <!-- ENCABEZADO DE RADICADO Y TIPO -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 text-center space-y-1">
           <span class="inline-block px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-[10px] font-black tracking-widest uppercase">
@@ -112,15 +135,44 @@ const anteriorFoto = () => {
           </h2>
         </div>
 
+        <!-- DICTAMEN / INFORME FINAL DISPONIBLE PARA EL CIUDADANO -->
+        <div
+          v-if="dictamen"
+          class="bg-white rounded-2xl p-4 shadow-sm border border-emerald-200 space-y-3"
+        >
+          <div class="flex items-center gap-2.5">
+            <div class="p-2 rounded-xl bg-emerald-100 text-emerald-700 shrink-0">
+              <FileCheck2 class="w-4 h-4" />
+            </div>
+            <div>
+              <h3 class="text-xs font-black text-slate-900 uppercase tracking-wide">
+                Informe de Finalización
+              </h3>
+              <p class="text-[11px] text-slate-500">
+                Dictamen policial registrado el {{ formatearFecha(dictamen.fecha_cierre) }}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            @click="mostrarModalDictamen = true"
+            class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
+          >
+            <Eye class="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>Ver Dictamen del Procedimiento</span>
+          </button>
+        </div>
+
         <!-- SECCIÓN DE EVIDENCIAS (CARRUSEL PREVIO / MINI GALERÍA) -->
         <div v-if="evidenciasList.length > 0" class="space-y-2">
           <div class="flex items-center justify-between px-1">
             <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Evidencias Adjuntas ({{ evidenciasList.length }})</span>
           </div>
-          
+
           <div class="grid grid-cols-4 gap-2">
-            <div 
-              v-for="(foto, idx) in evidenciasList" 
+            <div
+              v-for="(foto, idx) in evidenciasList"
               :key="idx"
               @click="abrirEvidencia(idx)"
               class="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 hover:border-red-600 shadow-sm cursor-pointer group transition-all"
@@ -139,7 +191,7 @@ const anteriorFoto = () => {
             <FileText class="w-4 h-4 text-red-600" />
             <h3 class="text-xs font-black text-slate-800 uppercase tracking-wide">Información del Incidente</h3>
           </div>
-          
+
           <div class="space-y-2.5 text-xs text-slate-700">
             <!-- Fecha y Hora del Reporte -->
             <div class="flex items-start gap-2">
@@ -185,7 +237,7 @@ const anteriorFoto = () => {
             <Clock class="w-4 h-4 text-red-600" />
             <h3 class="text-xs font-black text-slate-800 uppercase tracking-wide">Historial de Seguimiento</h3>
           </div>
-          
+
           <div class="space-y-3 pl-2">
             <div class="relative pl-6 border-l-2 border-slate-200 pb-1">
               <div class="absolute -left-[7px] top-0 w-3 h-3 rounded-full bg-gecap-darkblue ring-4 ring-slate-100"></div>
@@ -203,16 +255,24 @@ const anteriorFoto = () => {
 
     </div>
 
+    <!-- MODAL DICTAMEN EN MODO SOLO LECTURA PARA EL CIUDADANO -->
+    <ModalDictamenAlerta
+      v-if="mostrarModalDictamen && reporte"
+      :alerta="reporte"
+      :solo-lectura="true"
+      @cerrar="mostrarModalDictamen = false"
+    />
+
     <!-- MODAL CARRUSEL DE EVIDENCIAS EN GRANDE -->
     <div v-if="mostrarModalEvidencia" class="fixed inset-0 bg-black/85 z-50 flex flex-col justify-between p-4 backdrop-blur-md animate-fade-in">
-      
+
       <!-- Barra Superior del Modal -->
       <div class="flex items-center justify-between text-white py-2">
         <span class="text-xs font-black tracking-widest uppercase bg-white/10 px-3 py-1 rounded-full">
           Foto {{ currentIndex + 1 }} de {{ evidenciasList.length }}
         </span>
-        <button 
-          @click="mostrarModalEvidencia = false" 
+        <button
+          @click="mostrarModalEvidencia = false"
           class="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer"
         >
           <X class="w-6 h-6" />
@@ -221,9 +281,9 @@ const anteriorFoto = () => {
 
       <!-- Contenedor Central del Carrusel -->
       <div class="relative flex-1 flex items-center justify-center my-2 overflow-hidden">
-        
+
         <!-- Botón Anterior -->
-        <button 
+        <button
           v-if="evidenciasList.length > 1"
           @click="anteriorFoto"
           class="absolute left-2 z-10 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer backdrop-blur-sm"
@@ -233,15 +293,15 @@ const anteriorFoto = () => {
 
         <!-- Imagen Ampliada -->
         <div class="w-full h-full max-h-[65vh] flex items-center justify-center p-1">
-          <img 
-            :src="evidenciaActual" 
-            alt="Evidencia ampliada" 
-            class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/10" 
+          <img
+            :src="evidenciaActual"
+            alt="Evidencia ampliada"
+            class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/10"
           />
         </div>
 
         <!-- Botón Siguiente -->
-        <button 
+        <button
           v-if="evidenciasList.length > 1"
           @click="siguienteFoto"
           class="absolute right-2 z-10 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer backdrop-blur-sm"
@@ -252,8 +312,8 @@ const anteriorFoto = () => {
 
       <!-- Miniaturas inferiores para navegación rápida -->
       <div v-if="evidenciasList.length > 1" class="py-2 flex gap-2 overflow-x-auto justify-center max-w-full scrollbar-none">
-        <button 
-          v-for="(foto, idx) in evidenciasList" 
+        <button
+          v-for="(foto, idx) in evidenciasList"
           :key="idx"
           @click="currentIndex = idx"
           :class="[

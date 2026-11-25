@@ -252,39 +252,39 @@ const handleGuardar = async () => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white text-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[92vh]">
-      
+  <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+    <div class="bg-white text-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[90dvh] sm:max-h-[92vh]">
+
       <!-- ENCABEZADO -->
-      <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-2.5">
-          <FileCheck2 class="w-5 h-5 text-emerald-400" />
-          <div>
-            <h2 class="text-sm font-black uppercase tracking-wider">
-              {{ soloLectura ? 'Informe de Finalización de Procedimiento (Solo Lectura)' : 'Generar Informe de Finalización de Procedimiento' }}
+      <div class="bg-slate-900 text-white px-4 sm:px-5 py-3.5 sm:py-4 flex items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <FileCheck2 class="w-5 h-5 text-emerald-400 shrink-0" />
+          <div class="min-w-0">
+            <h2 class="text-xs sm:text-sm font-black uppercase tracking-wider truncate">
+              {{ soloLectura ? 'Informe de Finalización (Solo Lectura)' : 'Generar Informe de Finalización de Procedimiento' }}
             </h2>
-            <p class="text-[11px] text-slate-400">
+            <p class="text-[11px] text-slate-400 truncate">
               Radicado #{{ alerta.codigo_seguimiento || alerta.id }} • {{ alerta.estado_actual }}
             </p>
           </div>
         </div>
         <button
           @click="$emit('cerrar')"
-          class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+          class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer shrink-0"
         >
           <X class="w-5 h-5" />
         </button>
       </div>
 
       <!-- CUERPO DEL FORMULARIO -->
-      <div class="p-5 overflow-y-auto space-y-5 text-xs">
+      <div class="p-3.5 sm:p-5 overflow-y-auto space-y-4 sm:space-y-5 text-xs">
         <div v-if="cargandoExistente" class="flex items-center gap-2 text-slate-500 font-semibold">
           <Loader2 class="w-4 h-4 animate-spin" />
           <span>Cargando dictamen registrado...</span>
         </div>
 
         <!-- CAMPOS PRINCIPALES DE REGISTRO -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200">
           <div>
             <label class="block font-bold text-slate-700 mb-1">Número de Identificación del Operador *</label>
             <input
@@ -318,7 +318,7 @@ const handleGuardar = async () => {
         </div>
 
         <!-- 1. IDENTIFICACIÓN Y UBICACIÓN -->
-        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3.5">
+        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3 sm:p-3.5">
           <h3 class="font-black uppercase text-slate-800">1. Datos de Identificación y Ubicación</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
@@ -349,7 +349,7 @@ const handleGuardar = async () => {
         </div>
 
         <!-- 2 Y 3. FUNCIONARIOS Y MOTIVO -->
-        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3.5">
+        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3 sm:p-3.5">
           <h3 class="font-black uppercase text-slate-800">2 y 3. Funcionarios y Motivo del Llamado</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -372,7 +372,7 @@ const handleGuardar = async () => {
         </div>
 
         <!-- 4. PERSONAS INVOLUCRADAS -->
-        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3.5">
+        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3 sm:p-3.5">
           <h3 class="font-black uppercase text-slate-800">4. Persona Involucrada Principal</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
@@ -403,7 +403,7 @@ const handleGuardar = async () => {
         </div>
 
         <!-- 5 Y 6. RELATO Y RESULTADO -->
-        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3.5">
+        <div class="space-y-2.5 border border-slate-200 rounded-xl p-3 sm:p-3.5">
           <h3 class="font-black uppercase text-slate-800">5 y 6. Relato, Actuaciones y Resultado</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -436,7 +436,7 @@ const handleGuardar = async () => {
         </div>
 
         <!-- BOTÓN PARA VOLCAR CAMPOS AL TEXTO COMPLETO -->
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <span class="font-bold text-slate-700 uppercase">
             Informe Final Completo (alerta_dictamenes.detalles_procedimiento)
           </span>
@@ -453,29 +453,29 @@ const handleGuardar = async () => {
 
         <textarea
           v-model="detallesProcedimiento"
-          rows="14"
+          rows="12"
           :readonly="soloLectura"
           class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-mono text-[11px] leading-relaxed text-slate-800 read-only:bg-slate-100 read-only:text-slate-700 focus:outline-none focus:border-slate-900"
         ></textarea>
       </div>
 
       <!-- PIE DEL MODAL -->
-      <div class="bg-slate-100 px-5 py-3.5 border-t border-slate-200 flex items-center justify-between gap-2.5 shrink-0">
+      <div class="bg-slate-100 px-4 sm:px-5 py-3.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
         <button
           type="button"
           @click="handleDescargarPdf"
-          class="px-4 py-2 rounded-xl text-xs font-black bg-red-700 hover:bg-red-800 text-white flex items-center gap-2 shadow-sm transition cursor-pointer"
+          class="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black bg-red-700 hover:bg-red-800 text-white flex items-center gap-2 shadow-sm transition cursor-pointer"
         >
-          <FileDown class="w-4 h-4" />
+          <FileDown class="w-4 h-4 shrink-0" />
           <span>Descargar PDF</span>
         </button>
 
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2 ml-auto">
           <button
             type="button"
             @click="$emit('cerrar')"
             :disabled="guardando"
-            class="px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
+            class="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
           >
             {{ soloLectura ? 'Cerrar' : 'Cancelar' }}
           </button>
@@ -484,7 +484,7 @@ const handleGuardar = async () => {
             type="button"
             @click="handleGuardar"
             :disabled="guardando"
-            class="px-4 py-2 rounded-xl text-xs font-black bg-slate-950 hover:bg-slate-800 disabled:opacity-50 text-white flex items-center gap-2 transition cursor-pointer"
+            class="px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black bg-slate-950 hover:bg-slate-800 disabled:opacity-50 text-white flex items-center gap-2 transition cursor-pointer"
           >
             <Loader2 v-if="guardando" class="w-4 h-4 animate-spin" />
             <Save v-else class="w-4 h-4" />
